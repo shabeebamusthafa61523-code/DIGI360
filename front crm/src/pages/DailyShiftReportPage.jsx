@@ -1241,79 +1241,7 @@ const DailyShiftReportPage = () => {
         title="Daily Shift Report AI Analysis"
       />
 
-      <div className="max-w-7xl mx-auto flex gap-6 items-start w-full relative flex-col lg:flex-row">
-        {/* LEFT PANEL: Date Select Sidebar */}
-        <div className={`transition-all duration-300 ease-in-out shrink-0 bg-white/70 dark:bg-slate-900/70 border border-slate-200/50 dark:border-slate-800/50 backdrop-blur-md rounded-3xl p-5 shadow-sm relative print:hidden ${
-          isSidebarOpen 
-            ? 'w-full lg:w-72 opacity-100 translate-x-0' 
-            : 'w-0 lg:w-0 opacity-0 -translate-x-12 overflow-hidden p-0 border-none pointer-events-none'
-        }`}>
-          <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-2">
-            <Calendar size={14} className="text-indigo-500 dark:text-indigo-400" />
-            Shift Report Log (Monthly)
-          </h3>
-
-          <div className="space-y-2 max-h-[calc(100vh-12rem)] overflow-y-auto pr-0.5 scrollbar-thin">
-            {recentMonths.map(m => {
-              const isExpanded = expandedMonth === m.monthKey;
-              return (
-                <div key={m.monthKey} className="rounded-2xl border border-slate-200/70 dark:border-slate-800/70 overflow-hidden bg-slate-50/50 dark:bg-slate-950/40">
-                  <button
-                    type="button"
-                    onClick={() => setExpandedMonth(isExpanded ? null : m.monthKey)}
-                    className={`w-full px-3.5 py-2.5 flex items-center justify-between font-bold text-xs transition cursor-pointer ${
-                      isExpanded 
-                        ? 'bg-indigo-600 text-white shadow-xs' 
-                        : 'hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-200'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Calendar size={13} className={isExpanded ? 'text-white' : 'text-indigo-500'} />
-                      <span>{m.monthName}</span>
-                    </div>
-                    <ChevronDown size={14} className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  {isExpanded && (
-                    <div className="p-1.5 space-y-1 bg-white/70 dark:bg-slate-900/70 border-t border-slate-200/50 dark:border-slate-800/50 max-h-60 overflow-y-auto">
-                      {m.dates.map(dateObj => {
-                        const isSelected = selectedDate === dateObj.dateString;
-                        const isSubmitted = submittedDates.includes(dateObj.dateString);
-                        return (
-                          <button
-                            key={dateObj.dateString}
-                            onClick={() => setSelectedDate(dateObj.dateString)}
-                            className={`w-full px-3 py-2 rounded-xl text-left text-xs flex items-center justify-between transition cursor-pointer ${
-                              isSelected
-                                ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                                : 'hover:bg-slate-100 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
-                            }`}
-                          >
-                            <div className="flex flex-col">
-                              <span className={`text-[10px] ${isSelected ? 'text-indigo-200 font-semibold' : 'text-slate-400'}`}>
-                                {dateObj.dayName}
-                              </span>
-                              <span className="font-bold text-xs mt-0.5">
-                                {dateObj.displayDate}
-                              </span>
-                            </div>
-                            {isSubmitted && (
-                              <CheckCircle size={13} className={isSelected ? 'text-white' : 'text-emerald-500'} />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* MAIN REPORT CONTENT CONTAINER */}
-        <div className="flex-1 min-w-0 w-full space-y-4">
-
+      <div className="max-w-7xl mx-auto w-full space-y-4">
           {/* MINIMAL ACTION TOOLBAR */}
           <div className="w-full print:hidden flex flex-wrap items-center justify-between gap-3 bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800/60 backdrop-blur-md py-2 px-3.5 rounded-xl shadow-xs">
             <div className="flex items-center gap-2">
@@ -2191,14 +2119,111 @@ const DailyShiftReportPage = () => {
           <span>Submit & Export PDF</span>
         </button>
       </div>
-
     </div>
-  </div>
+
+      {/* DATES SELECTOR DRAWER */}
+      {isSidebarOpen && (
+        <div 
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex justify-end print:hidden cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm sm:max-w-md bg-white dark:bg-slate-900 h-full shadow-2xl p-6 overflow-y-auto space-y-5 flex flex-col cursor-default"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="text-indigo-600 dark:text-indigo-400" size={20} />
+                <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Shift Report Log (Monthly)</h3>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setIsSidebarOpen(false)} 
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                title="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+              Select any past date from monthly shift logs to view or edit the report.
+            </p>
+
+            <div className="space-y-2 flex-1 overflow-y-auto pr-0.5 scrollbar-thin">
+              {recentMonths.map(m => {
+                const isExpanded = expandedMonth === m.monthKey;
+                return (
+                  <div key={m.monthKey} className="rounded-2xl border border-slate-200/70 dark:border-slate-800/70 overflow-hidden bg-slate-50/50 dark:bg-slate-950/40">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedMonth(isExpanded ? null : m.monthKey)}
+                      className={`w-full px-3.5 py-2.5 flex items-center justify-between font-bold text-xs transition cursor-pointer ${
+                        isExpanded 
+                          ? 'bg-indigo-600 text-white shadow-xs' 
+                          : 'hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Calendar size={13} className={isExpanded ? 'text-white' : 'text-indigo-500'} />
+                        <span>{m.monthName}</span>
+                      </div>
+                      <ChevronDown size={14} className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isExpanded && (
+                      <div className="p-1.5 space-y-1 bg-white/70 dark:bg-slate-900/70 border-t border-slate-200/50 dark:border-slate-800/50 max-h-60 overflow-y-auto">
+                        {m.dates.map(dateObj => {
+                          const isSelected = selectedDate === dateObj.dateString;
+                          const isSubmitted = submittedDates.includes(dateObj.dateString);
+                          return (
+                            <button
+                              key={dateObj.dateString}
+                              type="button"
+                              onClick={() => {
+                                setSelectedDate(dateObj.dateString);
+                                setIsSidebarOpen(false);
+                              }}
+                              className={`w-full px-3 py-2 rounded-xl text-left text-xs flex items-center justify-between transition cursor-pointer ${
+                                isSelected
+                                  ? 'bg-indigo-600 text-white font-bold shadow-xs'
+                                  : 'hover:bg-slate-100 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
+                              }`}
+                            >
+                              <div className="flex flex-col">
+                                <span className={`text-[10px] ${isSelected ? 'text-indigo-200 font-semibold' : 'text-slate-400'}`}>
+                                  {dateObj.dayName}
+                                </span>
+                                <span className="font-bold text-xs mt-0.5">
+                                  {dateObj.displayDate}
+                                </span>
+                              </div>
+                              {isSubmitted && (
+                                <CheckCircle size={13} className={isSelected ? 'text-white' : 'text-emerald-500'} />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* HISTORY DRAWER */}
       {historyDrawerOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex justify-end">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 h-full shadow-2xl p-6 overflow-y-auto space-y-6">
+        <div 
+          onClick={() => setHistoryDrawerOpen(false)}
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex justify-end cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-white dark:bg-slate-900 h-full shadow-2xl p-6 overflow-y-auto space-y-6 cursor-default"
+          >
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-2">
                 <History className="text-indigo-600" size={20} />

@@ -26,7 +26,7 @@ export const ALL_SIDEBAR_ITEMS = [
   { label: 'Marketing Dashboard', path: '/marketing-dashboard', category: 'Dashboards', desc: 'Marketing campaigns & lead generation metrics' },
 
   // --- PEOPLE & HR ---
-  { label: 'Staff Attendance', path: '/staff-attendance', category: 'People & HR', desc: 'Daily staff attendance roster & clock-in logs' },
+  { label: 'Staff Attendance', path: '/staff-attendance', category: 'People & HR', desc: 'Daily staff attendance roster, check-in logs & workforce hours' },
   { label: 'Recruitment', path: '/recruitment', category: 'People & HR', desc: 'Candidate pipeline, interviews & offer letters' },
   { label: 'Users', path: '/users', category: 'People & HR', desc: 'Employee directory & account management' },
   { label: 'Departments', path: '/departments', category: 'People & HR', desc: 'Department hierarchy & manager assignments' },
@@ -65,6 +65,6 @@ export const ALL_SIDEBAR_ITEMS = [
   // --- DAILY OPERATIONS ---
   { label: 'Daily Operations OS', path: '/daily-operations', category: 'Daily Operations', desc: 'Management daily operations workflow & routines' },
   { label: 'TL Daily Operations', path: '/tl-daily-operations', category: 'Daily Operations', desc: 'Team Lead department routine checklist & EOD closures' },
-  { label: 'Attendance', path: '/attendance', category: 'Daily Operations', desc: 'Daily attendance clock-in/out logs' },
+  { label: 'Attendance', path: '/attendance', category: 'Daily Operations', desc: 'Personal daily attendance clock-in/out logs' },
   { label: 'Task Assign', path: '/todo', category: 'Daily Operations', desc: 'Task assignment & to-do list tracker' },
 ];

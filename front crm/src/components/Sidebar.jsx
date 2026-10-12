@@ -102,7 +102,15 @@ const menuItems = [
   { icon: Megaphone, label: 'Marketing Dashboard', path: '/marketing-dashboard', category: 'Dashboards', allowedRoles: ['1', '2', '3', '10', 'hr', 'admin', 'superadmin', 'marketing', 'manager', 'team_lead', 'teamlead', 'tl'], allowedDepartmentNames: ['marketing', 'digital'] },
 
   // --- PEOPLE & HR ---
-  { icon: UserCheck, label: 'Staff Attendance', path: '/staff-attendance', category: 'People & HR' },
+  { 
+    icon: UserCheck, 
+    label: 'Staff Attendance', 
+    path: '/staff-attendance', 
+    category: 'People & HR',
+    allowedRoles: ['0', '1', '2', '3', '10', 'admin', 'superadmin', 'hr', 'manager', 'team_lead', 'teamlead', 'tl', 'md', 'coo', 'EXECUTIVE_DIRECTOR'], 
+    allowedDepartmentNames: ['hr', 'admin', 'management'],
+    allowedDesignationNames: ['hr', 'admin', 'manager', 'lead', 'team lead', 'tl', 'supervisor', 'hod']
+  },
   { icon: UserCheck, label: 'Recruitment', path: '/recruitment', category: 'People & HR', allowedRoles: ['0', '1', '2', '3', '10', 'hr', 'admin', 'superadmin', 'manager', 'team_lead', 'teamlead', 'recruiter'], allowedDesignationNames: ['hr', 'recruiter', 'admin', 'manager'] },
   { icon: Users, label: 'Users', path: '/users', category: 'People & HR', allowedRoles: ['1', '2', 'hr', 'admin'], allowedDepartmentNames: ['hr', 'admin'] },
   { icon: Building, label: 'Departments', path: '/departments', category: 'People & HR', allowedRoles: ['1', '2', 'hr', 'admin'] },
@@ -379,6 +387,11 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen })
           'daily operations os': '/daily-operations',
           'daily operations': '/daily-operations',
           'tl daily operations': '/tl-daily-operations',
+          'staff attendance': '/staff-attendance',
+          'attendance logs': '/staff-attendance',
+          'attendance': '/attendance',
+          'task assign': '/todo',
+          'todo': '/todo',
         };
         const extraAllowedPaths = [];
         for (const perm of allowedSet) {
