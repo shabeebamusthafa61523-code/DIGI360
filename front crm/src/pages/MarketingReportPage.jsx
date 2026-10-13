@@ -54,7 +54,7 @@ const MarketingReportPage = () => {
         try {
           const userObj = JSON.parse(savedUser);
           const role = String(userObj.role_id || userObj.role || '').toLowerCase().trim();
-          const privileged = ['1', '2', 'hr', 'admin'].includes(role);
+          const privileged = userObj.isSuperAdmin === true || userObj.is_super_admin === true || ['0', '1', '2', 'hr', 'admin', 'superadmin', 'super_admin'].includes(role);
           if (privileged) return queryUserId;
         } catch (e) {
           console.error(e);
@@ -114,7 +114,7 @@ const MarketingReportPage = () => {
         try {
           const userObj = JSON.parse(savedUser);
           const role = String(userObj.role_id || userObj.role || '').toLowerCase().trim();
-          isUserPrivileged = ['1', '2', 'hr', 'admin'].includes(role);
+          isUserPrivileged = userObj.isSuperAdmin === true || userObj.is_super_admin === true || ['0', '1', '2', 'hr', 'admin', 'superadmin', 'super_admin'].includes(role);
         } catch (e) {
           console.error(e);
         }
@@ -969,11 +969,11 @@ const MarketingReportPage = () => {
         setCurrentUser(userObj);
         
         const role = String(userObj.role_id || userObj.role || '').toLowerCase().trim();
-        const privileged = ['1', '2', 'hr', 'admin'].includes(role);
+        const privileged = userObj.isSuperAdmin === true || userObj.is_super_admin === true || ['0', '1', '2', 'hr', 'admin', 'superadmin', 'super_admin'].includes(role);
         setIsPrivileged(privileged);
         
         const uId = userObj.id || userObj._id;
-        if (!selectedUserId && uId) {
+        if (!selectedUserId && !privileged && uId) {
           setSelectedUserId(uId);
         }
       }
@@ -993,8 +993,15 @@ const MarketingReportPage = () => {
           const data = await res.json();
           if (data.success && Array.isArray(data.data)) {
             setMarketingStaff(data.data);
-            if (data.data.length > 0 && !selectedUserId) {
-              setSelectedUserId(data.data[0]._id);
+            if (data.data.length > 0) {
+              const queryParams = new URLSearchParams(window.location.search);
+              const qUserId = queryParams.get('userId');
+              const matched = qUserId && data.data.some(u => (u._id || u.id) === qUserId);
+              if (matched) {
+                setSelectedUserId(qUserId);
+              } else if (!selectedUserId || selectedUserId === (currentUser._id || currentUser.id)) {
+                setSelectedUserId(data.data[0]._id);
+              }
             }
           }
         } catch (e) {
@@ -1474,6 +1481,23 @@ const MarketingReportPage = () => {
                 <p className="text-sm text-slate-500 mt-1">
                   Fill, review, and download digital marketer shift reports.
                 </p>
+                {isPrivileged && marketingStaff.length > 0 && (
+                  <div className="mt-3 flex items-center gap-2 bg-indigo-50/70 dark:bg-slate-800/60 px-3 py-1.5 rounded-xl border border-indigo-100 dark:border-slate-700 w-fit">
+                    <User size={14} className="text-indigo-600 dark:text-lime-400" />
+                    <span className="text-xs font-semibold text-slate-500">Employee:</span>
+                    <select
+                      value={selectedUserId}
+                      onChange={(e) => setSelectedUserId(e.target.value)}
+                      className="bg-transparent font-bold text-slate-800 dark:text-slate-100 focus:outline-none cursor-pointer text-xs"
+                    >
+                      {marketingStaff.map((u) => (
+                        <option key={u._id || u.id} value={u._id || u.id} className="text-slate-800 dark:text-slate-900">
+                          {u.name} ({u.employeeId || 'EMP'})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-start sm:justify-end">
