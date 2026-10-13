@@ -2,45 +2,57 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp, Users, BarChart3, RefreshCw, ChevronRight,
-  ArrowUpRight, ArrowDownRight, Award, PieChart, CheckCircle2,
+  ArrowUpRight, Award, PieChart, CheckCircle2,
   Phone, Mail, Briefcase, Tag, Calendar, Clock, Target,
-  Zap, ShieldAlert, Loader2, Eye, Activity
+  Zap, Loader2, Eye, Activity, Megaphone, FolderKanban,
+  CheckSquare, Plus, FileText, Globe, ExternalLink, Sparkles,
+  Building2, Layers, Search, Filter, AlertCircle, Share2,
+  CheckCircle, MessageSquare
 } from 'lucide-react';
 import { useToast } from '../components/ToastProvider';
 
 const rawApiBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
 const API_BASE = rawApiBase.endsWith('/v1') ? rawApiBase : `${rawApiBase}/v1`;
 
-/* ─── Color map for Course Interest ─── */
-const INTEREST_COLORS = {
-  'HOT LEAD':     { bg: 'bg-green-200',  bar: 'from-green-500 to-emerald-400',  text: 'text-green-700',  dot: 'bg-green-500' },
-  'WARM LEAD':    { bg: 'bg-sky-200',    bar: 'from-sky-500 to-cyan-400',       text: 'text-sky-700',    dot: 'bg-sky-500' },
-  'COLD LEAD':    { bg: 'bg-red-200',    bar: 'from-red-500 to-rose-400',       text: 'text-red-700',    dot: 'bg-red-500' },
-  'WRONG LEAD':   { bg: 'bg-yellow-200', bar: 'from-yellow-500 to-amber-400',   text: 'text-yellow-700', dot: 'bg-yellow-500' },
-  'RNT':          { bg: 'bg-purple-200', bar: 'from-purple-500 to-violet-400',  text: 'text-purple-700', dot: 'bg-purple-500' },
-  'SWITCHED OFF': { bg: 'bg-pink-200',   bar: 'from-pink-500 to-rose-400',      text: 'text-pink-700',   dot: 'bg-pink-500' },
-  'CALL BACK':    { bg: 'bg-slate-200',  bar: 'from-slate-500 to-gray-400',     text: 'text-slate-700',  dot: 'bg-slate-500' },
-};
-
+/* ─── Color maps ─── */
 const STATUS_COLORS = {
-  'New':        { bar: 'from-blue-500 to-indigo-400',    dot: 'bg-blue-500' },
-  'Contacted':  { bar: 'from-indigo-500 to-violet-400',  dot: 'bg-indigo-500' },
-  'Follow Up':  { bar: 'from-amber-500 to-yellow-400',   dot: 'bg-amber-500' },
-  'Interested': { bar: 'from-purple-500 to-fuchsia-400', dot: 'bg-purple-500' },
-  'Converted':  { bar: 'from-emerald-500 to-lime-400',   dot: 'bg-emerald-500' },
-  'Lost':       { bar: 'from-rose-500 to-red-400',       dot: 'bg-rose-500' },
+  'New':        { badge: 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border-blue-200 dark:border-blue-800', bar: 'from-blue-500 to-indigo-500', dot: 'bg-blue-500' },
+  'Contacted':  { badge: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800', bar: 'from-indigo-500 to-violet-500', dot: 'bg-indigo-500' },
+  'Follow Up':  { badge: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border-amber-200 dark:border-amber-800', bar: 'from-amber-500 to-yellow-500', dot: 'bg-amber-500' },
+  'Interested': { badge: 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400 border-purple-200 dark:border-purple-800', bar: 'from-purple-500 to-fuchsia-500', dot: 'bg-purple-500' },
+  'Converted':  { badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800', bar: 'from-emerald-500 to-teal-500', dot: 'bg-emerald-500' },
+  'Lost':       { badge: 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200 dark:border-rose-800', bar: 'from-rose-500 to-red-500', dot: 'bg-rose-500' },
 };
 
-const SOURCE_COLORS = {
-  'REFERENCE':     { bar: 'from-violet-500 to-purple-400', dot: 'bg-violet-500' },
-  'INBOUND CALLS': { bar: 'from-cyan-500 to-teal-400',    dot: 'bg-cyan-500' },
-  'INBOUND MSG':   { bar: 'from-blue-500 to-sky-400',     dot: 'bg-blue-500' },
-  'MARKETING':     { bar: 'from-orange-500 to-amber-400', dot: 'bg-orange-500' },
+const PLATFORM_COLORS = {
+  'facebook_post':   { name: 'Facebook Post', bg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900', icon: 'FB' },
+  'facebook_story':  { name: 'Facebook Story', bg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900', icon: 'FB' },
+  'instagram_post':  { name: 'Instagram Post', bg: 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-200 dark:border-pink-900', icon: 'IG' },
+  'instagram_story': { name: 'Instagram Story', bg: 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-200 dark:border-pink-900', icon: 'IG' },
+  'instagram_reel':  { name: 'Instagram Reel', bg: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-900', icon: 'REEL' },
+  'linkedin_post':   { name: 'LinkedIn Post', bg: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-200 dark:border-sky-900', icon: 'IN' },
+  'youtube_video':   { name: 'YouTube Video', bg: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900', icon: 'YT' },
+  'youtube_short':   { name: 'YouTube Short', bg: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900', icon: 'YT' },
+  'other':           { name: 'Social Post', bg: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800', icon: 'SOC' }
 };
 
 const MarketingDashboard = () => {
   const [user, setUser] = useState(null);
-  const [leads, setLeads] = useState([]);
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'leads' | 'calendar' | 'projects'
+  
+  // Data states
+  const [clientLeads, setClientLeads] = useState([]);
+  const [leadStats, setLeadStats] = useState(null);
+  const [calendarWorks, setCalendarWorks] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  
+  // UI filter states
+  const [leadSearch, setLeadSearch] = useState('');
+  const [leadStatusFilter, setLeadStatusFilter] = useState('all');
+  const [calendarFilter, setCalendarFilter] = useState('all');
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { showToast } = useToast();
@@ -52,10 +64,6 @@ const MarketingDashboard = () => {
     } catch (e) { console.error(e); }
   }, []);
 
-  const hasAccess = useMemo(() => {
-    return true;
-  }, []);
-
   const getAuthHeaders = useCallback(() => {
     const rawToken = localStorage.getItem('token');
     const cleanToken = rawToken ? rawToken.replace(/"/g, '') : '';
@@ -65,26 +73,67 @@ const MarketingDashboard = () => {
     };
   }, []);
 
-  const fetchLeads = useCallback(async (silent = false) => {
+  // Fetch all consolidated marketing datasets
+  const fetchAllData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     else setRefreshing(true);
+
+    const headers = getAuthHeaders();
+
     try {
-      const res = await fetch(`${API_BASE}/leads`, { headers: getAuthHeaders() });
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
+      const [leadsRes, statsRes, calRes, projRes, clientsRes, tasksRes] = await Promise.allSettled([
+        fetch(`${API_BASE}/client-leads?limit=100`, { headers }).then(r => r.ok ? r.json() : null),
+        fetch(`${API_BASE}/client-leads/stats`, { headers }).then(r => r.ok ? r.json() : null),
+        fetch(`${API_BASE}/calendar-work?limit=100`, { headers }).then(r => r.ok ? r.json() : null),
+        fetch(`${API_BASE}/projects?limit=50`, { headers }).then(r => r.ok ? r.json() : null),
+        fetch(`${API_BASE}/clients?limit=50`, { headers }).then(r => r.ok ? r.json() : null),
+        fetch(`${API_BASE}/tasks/all?limit=50`, { headers }).then(r => r.ok ? r.json() : null)
+      ]);
+
+      // Client Leads
+      if (leadsRes.status === 'fulfilled' && leadsRes.value) {
+        const val = leadsRes.value;
+        const list = Array.isArray(val.data) ? val.data : (Array.isArray(val) ? val : []);
+        setClientLeads(list);
       }
-      const contentType = res.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Server returned non-JSON response');
+
+      // Client Lead Stats
+      if (statsRes.status === 'fulfilled' && statsRes.value?.success && statsRes.value.data) {
+        setLeadStats(statsRes.value.data);
       }
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) setLeads(json.data);
-      else if (Array.isArray(json)) setLeads(json);
-      else setLeads([]);
-      if (silent) showToast('Dashboard refreshed!', 'success');
+
+      // Content Calendar
+      if (calRes.status === 'fulfilled' && calRes.value) {
+        const val = calRes.value;
+        const list = val.data?.data || val.data || (Array.isArray(val) ? val : []);
+        setCalendarWorks(Array.isArray(list) ? list : []);
+      }
+
+      // Projects
+      if (projRes.status === 'fulfilled' && projRes.value) {
+        const val = projRes.value;
+        const list = val.data || (Array.isArray(val) ? val : []);
+        setProjects(Array.isArray(list) ? list : []);
+      }
+
+      // Clients
+      if (clientsRes.status === 'fulfilled' && clientsRes.value) {
+        const val = clientsRes.value;
+        const list = val.data?.clients || val.data || (Array.isArray(val) ? val : []);
+        setClients(Array.isArray(list) ? list : []);
+      }
+
+      // Tasks
+      if (tasksRes.status === 'fulfilled' && tasksRes.value) {
+        const val = tasksRes.value;
+        const list = val.data?.tasks || val.data || val.tasks || (Array.isArray(val) ? val : []);
+        setTasks(Array.isArray(list) ? list : []);
+      }
+
+      if (silent) showToast('Marketing Dashboard refreshed with live data!', 'success');
     } catch (e) {
-      console.error('Error loading leads:', e);
-      showToast('Failed to load leads data.', 'error');
+      console.error('Error consolidating marketing data:', e);
+      showToast('Could not refresh all marketing datasets.', 'error');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -92,535 +141,890 @@ const MarketingDashboard = () => {
   }, [getAuthHeaders, showToast]);
 
   useEffect(() => {
-    if (user && hasAccess) fetchLeads();
-  }, [user, hasAccess, fetchLeads]);
+    fetchAllData();
+  }, [fetchAllData]);
 
-  /* ─── Computed Analytics ─── */
+  /* ─── Computed Analytics from real permissions ─── */
   const analytics = useMemo(() => {
-    if (!leads.length) return null;
-
-    const now = new Date();
-    const past24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const past7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    const total = leads.length;
-    const newLeads24h = leads.filter(l => new Date(l.createdAt) >= past24h).length;
-    const mtdLeads = leads.filter(l => new Date(l.createdAt) >= startOfMonth).length;
-
-    const genuineLeads = leads.filter(l => {
-      const interest = (l.interestedService || '').trim().toUpperCase();
-      return ['HOT LEAD', 'WARM LEAD', 'COLD LEAD'].includes(interest);
-    }).length;
+    const totalLeads = clientLeads.length;
+    const newLeads = clientLeads.filter(l => (l.status || '').toLowerCase() === 'new').length;
+    const convertedLeads = clientLeads.filter(l => (l.status || '').toLowerCase() === 'converted').length;
+    const followUpLeads = clientLeads.filter(l => (l.status || '').toLowerCase() === 'follow up').length;
+    const meetingsFixed = clientLeads.filter(l => String(l.clientMeetingFixed).toLowerCase() === 'yes').length;
+    const conversionRate = totalLeads > 0 ? Math.round((convertedLeads / totalLeads) * 100) : 0;
 
     // Status breakdown
-    const statusBreakdown = {};
-    leads.forEach(l => {
-      const s = l.status || 'New';
-      statusBreakdown[s] = (statusBreakdown[s] || 0) + 1;
+    const leadStatusMap = {};
+    ['New', 'Contacted', 'Follow Up', 'Interested', 'Converted', 'Lost'].forEach(st => {
+      leadStatusMap[st] = clientLeads.filter(l => (l.status || '').toLowerCase() === st.toLowerCase()).length;
     });
 
-    // Course Interest breakdown
-    const interestBreakdown = {};
-    leads.forEach(l => {
-      const s = (l.interestedService || '').trim().toUpperCase();
-      if (s) interestBreakdown[s] = (interestBreakdown[s] || 0) + 1;
+    // Content calendar stats
+    const totalContent = calendarWorks.length;
+    const scheduledContent = calendarWorks.filter(c => c.postingStatus === 'scheduled' || c.postingStatus === 'completed').length;
+    const draftContent = calendarWorks.filter(c => c.workStatus === 'draft').length;
+    const completedContent = calendarWorks.filter(c => c.workStatus === 'completed').length;
+
+    // Content types
+    const contentTypesMap = {};
+    calendarWorks.forEach(c => {
+      const type = c.contentType || 'other';
+      contentTypesMap[type] = (contentTypesMap[type] || 0) + 1;
     });
 
-    // Course breakdown
-    const courseBreakdown = {};
-    leads.forEach(l => {
-      const s = (l.course || '').trim();
-      if (s) courseBreakdown[s] = (courseBreakdown[s] || 0) + 1;
+    // Projects stats
+    const totalProjects = projects.length;
+    const avgProgress = totalProjects > 0
+      ? Math.round(projects.reduce((acc, p) => acc + (Number(p.progress) || 0), 0) / totalProjects)
+      : 0;
+
+    // Clients stats
+    const totalClients = clients.length;
+
+    // Marketer Tasks stats
+    const userId = user?.id || user?._id;
+    const myTasks = tasks.filter(t => {
+      if (!userId) return true;
+      const assigned = t.assigned_to || t.assignedTo || [];
+      if (Array.isArray(assigned)) {
+        return assigned.some(u => String(u._id || u.id || u) === String(userId));
+      }
+      return String(assigned._id || assigned.id || assigned) === String(userId);
     });
-
-    // Source breakdown
-    const sourceBreakdown = {};
-    leads.forEach(l => {
-      const s = (l.source || '').trim().toUpperCase();
-      if (s) sourceBreakdown[s] = (sourceBreakdown[s] || 0) + 1;
-    });
-
-    // Weekly trend (leads created per day, last 7 days)
-    const weeklyTrend = [];
-    for (let i = 6; i >= 0; i--) {
-      const day = new Date(now);
-      day.setDate(day.getDate() - i);
-      const dayStr = day.toISOString().split('T')[0];
-      const count = leads.filter(l => {
-        const cd = new Date(l.createdAt).toISOString().split('T')[0];
-        return cd === dayStr;
-      }).length;
-      weeklyTrend.push({ date: dayStr, label: day.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }), count });
-    }
-
-    // Weekly stats calculations
-    const weeklyTotal = weeklyTrend.reduce((sum, d) => sum + d.count, 0);
-    const weeklyAvg = (weeklyTotal / 7).toFixed(1);
-    const weeklyPeak = weeklyTrend.reduce((maxDay, d) => d.count > maxDay.count ? d : maxDay, { label: 'None', count: 0 });
-
-    // Recent leads (last 5)
-    const recentLeads = [...leads]
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      .slice(0, 8);
+    const completedTasks = myTasks.filter(t => ['done', 'completed'].includes(String(t.status || '').toLowerCase())).length;
 
     return {
-      total, newLeads24h, mtdLeads, genuineLeads,
-      statusBreakdown, interestBreakdown, sourceBreakdown, courseBreakdown,
-      weeklyTrend, recentLeads,
-      weeklyTotal, weeklyAvg, weeklyPeak
+      totalLeads,
+      newLeads,
+      convertedLeads,
+      followUpLeads,
+      meetingsFixed,
+      conversionRate,
+      leadStatusMap,
+      totalContent,
+      scheduledContent,
+      draftContent,
+      completedContent,
+      contentTypesMap,
+      totalProjects,
+      avgProgress,
+      totalClients,
+      myTasksCount: myTasks.length || tasks.length,
+      completedTasksCount: completedTasks
     };
-  }, [leads]);
+  }, [clientLeads, calendarWorks, projects, clients, tasks, user]);
 
-  /* ─── Access Denied ─── */
-  if (user && !hasAccess) {
-    return (
-      <div className="min-h-[70vh] flex items-center justify-center p-6">
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md w-full bg-white dark:bg-slate-900 border border-red-500/30 rounded-3xl p-8 shadow-2xl text-center">
-          <div className="mx-auto w-16 h-16 bg-red-500/10 text-red-500 rounded-2xl flex items-center justify-center mb-6">
-            <ShieldAlert size={36} />
-          </div>
-          <h1 className="text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-white mb-2">
-            Access <span className="text-red-500">Restricted</span>
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-6">
-            This Marketing Dashboard is reserved for authorized departments only.
-          </p>
-          <button onClick={() => window.location.href = '/dashboard'}
-            className="w-full py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs uppercase rounded-xl transition-all cursor-pointer">
-            Return to Dashboard
-          </button>
-        </motion.div>
-      </div>
-    );
-  }
+  // Filtered Leads
+  const filteredClientLeads = useMemo(() => {
+    return clientLeads.filter(l => {
+      const matchesSearch = !leadSearch || 
+        (l.leadName || '').toLowerCase().includes(leadSearch.toLowerCase()) ||
+        (l.email || '').toLowerCase().includes(leadSearch.toLowerCase()) ||
+        (l.phone || '').includes(leadSearch) ||
+        (l.companyName || '').toLowerCase().includes(leadSearch.toLowerCase());
+      
+      const matchesStatus = leadStatusFilter === 'all' || 
+        (l.status || '').toLowerCase() === leadStatusFilter.toLowerCase();
 
-  /* ─── Loading ─── */
+      return matchesSearch && matchesStatus;
+    });
+  }, [clientLeads, leadSearch, leadStatusFilter]);
+
+  // Filtered Content
+  const filteredCalendarWorks = useMemo(() => {
+    return calendarWorks.filter(c => {
+      if (calendarFilter === 'all') return true;
+      return (c.contentType || '').toLowerCase().includes(calendarFilter.toLowerCase());
+    });
+  }, [calendarWorks, calendarFilter]);
+
   if (loading) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center">
-        <Loader2 className="animate-spin text-indigo-500 mb-4" size={40} />
-        <p className="text-xs text-slate-500 uppercase tracking-widest font-bold">Loading Marketing Dashboard...</p>
+      <div className="min-h-[75vh] flex flex-col items-center justify-center gap-3">
+        <Loader2 className="animate-spin text-indigo-500" size={40} />
+        <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+          Loading Consolidated Marketing Command Center...
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen p-4 lg:p-8 bg-slate-50/50 dark:bg-slate-950/20 text-slate-800 dark:text-slate-100">
-      <div className="max-w-[1600px] mx-auto space-y-6">
+    <div className="min-h-screen p-4 lg:p-8 bg-slate-50/60 dark:bg-slate-950/30 text-slate-800 dark:text-slate-100">
+      <div className="max-w-[1680px] mx-auto space-y-6">
 
-        {/* ─── Header ─── */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm">
+        {/* ─── Top Header & Controls ─── */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-sm">
           <div className="flex items-center gap-4">
-            <div className="p-3.5 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-2xl shadow-lg shadow-indigo-500/30">
-              <BarChart3 size={28} />
+            <div className="p-3.5 bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 text-white rounded-2xl shadow-lg shadow-indigo-500/25">
+              <Megaphone size={28} />
             </div>
             <div>
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[8px] font-black uppercase tracking-wider rounded-md">
-                  Marketing Analytics
+              <div className="flex items-center gap-2 mb-1">
+                <span className="px-2.5 py-0.5 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase tracking-wider rounded-md border border-indigo-500/20">
+                  Unified Marketing OS
                 </span>
-                <span className="w-1.5 h-1.5 bg-lime-500 rounded-full animate-pulse" />
-                <span className="text-[9px] text-lime-500 font-bold uppercase">Live</span>
+                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wide">
+                  Live Operations
+                </span>
               </div>
-              <h1 className="text-2xl lg:text-3xl font-black tracking-tight bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
-                Marketing Dashboard
+              <h1 className="text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                Marketing Command Center
               </h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Consolidated lead acquisition, content calendar, client projects & shift reporting.
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button onClick={() => fetchLeads(true)} disabled={refreshing}
-              className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs rounded-xl transition-all disabled:opacity-50 cursor-pointer">
+          {/* Quick Actions & Refresh */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={() => fetchAllData(true)}
+              disabled={refreshing}
+              className="flex items-center gap-2 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition-all disabled:opacity-50 cursor-pointer"
+            >
               <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
               Refresh
             </button>
-            <button onClick={() => window.location.href = '/leads'}
-              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-lg shadow-indigo-500/20 transition-all cursor-pointer">
-              Manage Leads
+
+            <a
+              href="/client-leads"
+              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 font-bold text-xs rounded-xl border border-indigo-200 dark:border-indigo-800 transition-all"
+            >
+              <Plus size={14} />
+              Add Lead
+            </a>
+
+            <a
+              href="/calendar-work"
+              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 font-bold text-xs rounded-xl border border-purple-200 dark:border-purple-800 transition-all"
+            >
+              <Calendar size={14} />
+              Calendar
+            </a>
+
+            <a
+              href="/marketing-report"
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-500/20 transition-all"
+            >
+              <FileText size={14} />
+              Shift Report
               <ChevronRight size={14} />
-            </button>
+            </a>
           </div>
         </div>
 
-        {analytics && (
-          <>
-            {/* ─── KPI Cards ─── */}
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-              <KpiCard icon={<Target size={20} />} label="Total Leads" value={analytics.total} color="indigo" />
-              <KpiCard icon={<Award size={20} />} label="Genuine Leads" value={analytics.genuineLeads} color="violet" />
-              <KpiCard icon={<Zap size={20} />} label="New (24h)" value={analytics.newLeads24h} color="cyan" />
-            </div>
+        {/* ─── Executive KPI Cards (Based on Granted Permissions) ─── */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <KpiCard
+            icon={<Target size={20} />}
+            label="Client Inquiries"
+            value={analytics.totalLeads}
+            sub={`${analytics.newLeads} new leads`}
+            color="indigo"
+            link="/client-leads"
+          />
+          <KpiCard
+            icon={<Calendar size={20} />}
+            label="Campaign Posts"
+            value={analytics.totalContent}
+            sub={`${analytics.completedContent} completed`}
+            color="violet"
+            link="/calendar-work"
+          />
+          <KpiCard
+            icon={<FolderKanban size={20} />}
+            label="Active Projects"
+            value={analytics.totalProjects}
+            sub={`${analytics.avgProgress}% avg progress`}
+            color="cyan"
+            link="/projects"
+          />
+          <KpiCard
+            icon={<Building2 size={20} />}
+            label="Client Brands"
+            value={analytics.totalClients}
+            sub="Active corporate accounts"
+            color="amber"
+            link="/clients"
+          />
+          <KpiCard
+            icon={<CheckSquare size={20} />}
+            label="Deliverables"
+            value={analytics.myTasksCount}
+            sub={`${analytics.completedTasksCount} tasks done`}
+            color="emerald"
+            link="/todo"
+          />
+        </div>
 
-            {/* ─── Main Content Grid ─── */}
+        {/* ─── Navigation Tabs ─── */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none border-b border-slate-200 dark:border-slate-800">
+          {[
+            { id: 'overview', label: 'Command Center', icon: BarChart3 },
+            { id: 'leads', label: `Client Leads (${analytics.totalLeads})`, icon: Target },
+            { id: 'calendar', label: `Content Schedule (${analytics.totalContent})`, icon: Calendar },
+            { id: 'projects', label: `Projects & Clients (${analytics.totalProjects})`, icon: Briefcase },
+          ].map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-3 font-bold text-xs uppercase tracking-wider rounded-2xl transition-all cursor-pointer whitespace-nowrap ${
+                  isActive
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <Icon size={15} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ─── TAB 1: OVERVIEW / COMMAND CENTER ─── */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-              {/* ─── Status Funnel (2 cols) ─── */}
-              <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-6 shadow-sm">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 mb-5 flex items-center gap-2">
-                  <span className="w-1 h-5 bg-indigo-500 rounded-full" />
-                  Lead Status Funnel
-                </h3>
-                <div className="space-y-3">
-                  {['New', 'Contacted', 'Follow Up', 'Interested', 'Converted', 'Lost'].map((status, idx) => {
-                    const count = analytics.statusBreakdown[status] || 0;
-                    const pct = analytics.total > 0 ? Math.round((count / analytics.total) * 100) : 0;
+              {/* 1. Lead Generation Pipeline (2 cols) */}
+              <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-5">
+                  <div>
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                      <span className="w-1.5 h-4 bg-indigo-500 rounded-full" />
+                      Client Lead Acquisition Pipeline
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Conversion funnel from marketing campaigns to onboarded clients.
+                    </p>
+                  </div>
+                  <a
+                    href="/client-leads"
+                    className="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 hover:underline"
+                  >
+                    View Leads <ChevronRight size={14} />
+                  </a>
+                </div>
+
+                <div className="space-y-3.5">
+                  {Object.entries(analytics.leadStatusMap).map(([status, count], idx) => {
+                    const pct = analytics.totalLeads > 0 ? Math.round((count / analytics.totalLeads) * 100) : 0;
                     const colors = STATUS_COLORS[status] || { bar: 'from-slate-500 to-gray-400', dot: 'bg-slate-500' };
                     return (
                       <div key={status}>
                         <div className="flex items-center justify-between text-xs mb-1 px-1">
-                          <span className="font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                          <span className="font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
                             <span className={`w-2 h-2 rounded-full ${colors.dot}`} />
                             {status}
                           </span>
-                          <span className="font-mono font-bold text-slate-800 dark:text-white">{count} <span className="text-slate-400 font-normal">({pct}%)</span></span>
+                          <span className="font-mono font-bold text-slate-800 dark:text-white">
+                            {count} <span className="text-slate-400 font-normal">({pct}%)</span>
+                          </span>
                         </div>
-                        <div className="w-full bg-slate-100 dark:bg-slate-800 h-7 rounded-xl overflow-hidden">
+                        <div className="w-full bg-slate-100 dark:bg-slate-800 h-6 rounded-xl overflow-hidden">
                           <motion.div
                             initial={{ width: 0 }}
-                            animate={{ width: `${Math.max(pct, 2)}%` }}
-                            transition={{ duration: 0.8, delay: idx * 0.08 }}
+                            animate={{ width: `${Math.max(pct, count > 0 ? 4 : 0)}%` }}
+                            transition={{ duration: 0.8, delay: idx * 0.05 }}
                             className={`h-full bg-gradient-to-r ${colors.bar} rounded-xl flex items-center pl-3`}
                           >
-                            <span className="text-[9px] font-bold text-white/90 uppercase tracking-wider">{status}</span>
+                            {count > 0 && (
+                              <span className="text-[9px] font-black text-white uppercase tracking-wider">
+                                {count}
+                              </span>
+                            )}
                           </motion.div>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-              </div>
 
-              {/* ─── Weekly Trend (1 col) ─── */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-6 shadow-sm">
-                <div className="flex justify-between items-center mb-5">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                    <span className="w-1 h-5 bg-lime-500 rounded-full" />
-                    Leads This Week
-                  </h3>
-                  <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-850 px-2.5 py-1 rounded-full border border-slate-100 dark:border-slate-800">
-                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-300">Active Week</span>
+                {/* Sub-Funnel Badges */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-6 pt-5 border-t border-slate-100 dark:border-slate-800">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200/50 dark:border-slate-800">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Meetings Booked</span>
+                    <span className="text-xl font-black text-indigo-600 dark:text-indigo-400 mt-1 block">
+                      {analytics.meetingsFixed}
+                    </span>
                   </div>
-                </div>
-
-                <div className="relative h-44 mt-4">
-                  {/* Grid Lines */}
-                  <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-                    {[0, 1, 2, 3, 4].map((gridIndex) => (
-                      <div 
-                        key={gridIndex} 
-                        className="w-full border-t border-dashed border-slate-100 dark:border-slate-800/80 h-0" 
-                      />
-                    ))}
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200/50 dark:border-slate-800">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Converted Deals</span>
+                    <span className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1 block">
+                      {analytics.convertedLeads}
+                    </span>
                   </div>
-
-                  {/* Bars Container */}
-                  <div className="absolute inset-0 flex items-end justify-between gap-1.5 pt-2">
-                    {analytics.weeklyTrend.map((day, idx) => {
-                      const max = Math.max(...analytics.weeklyTrend.map(d => d.count), 1);
-                      const hPct = Math.round((day.count / max) * 100);
-                      return (
-                        <div key={idx} className="flex flex-col items-center flex-1 h-full justify-end group">
-                          {/* Always visible count above the bar */}
-                          <span className="text-[10px] font-extrabold text-slate-650 dark:text-slate-300 font-mono mb-1 transition-colors group-hover:text-lime-500">
-                            {day.count}
-                          </span>
-                          
-                          {/* Bar Track Container */}
-                          <div className="w-full flex items-end justify-center h-28 relative">
-                            {/* Faint background track for clarity */}
-                            <div className="absolute inset-x-0 bottom-0 top-0 bg-slate-100/40 dark:bg-slate-800/10 rounded-t-md w-full max-w-[20px] mx-auto border border-dashed border-slate-200/20 dark:border-slate-800/10" />
-                            
-                            {/* Actual Bar */}
-                            <motion.div
-                              initial={{ scaleY: 0 }}
-                              animate={{ scaleY: 1 }}
-                              transition={{ duration: 0.6, delay: idx * 0.08 }}
-                              style={{ height: `${Math.max(hPct, 2)}%`, transformOrigin: 'bottom' }}
-                              className="w-full max-w-[20px] bg-gradient-to-t from-lime-600 to-lime-400 group-hover:from-lime-500 group-hover:to-lime-300 rounded-t-md transition-colors min-h-[2px] cursor-pointer relative z-10 shadow-sm"
-                            />
-                          </div>
-                          
-                          {/* Day label */}
-                          <span className="text-[8px] text-slate-400 dark:text-slate-550 font-bold mt-2 tracking-tight">{day.label}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Stats Summary Rows */}
-                <div className="grid grid-cols-3 gap-2 mt-5 p-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800/60">
-                  <div className="text-center">
-                    <span className="block text-[8px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-black">Weekly Total</span>
-                    <span className="text-xs font-black text-slate-800 dark:text-white mt-0.5 block">{analytics.weeklyTotal}</span>
-                  </div>
-                  <div className="text-center border-x border-slate-200/50 dark:border-slate-800/50">
-                    <span className="block text-[8px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-black">Daily Avg</span>
-                    <span className="text-xs font-black text-slate-800 dark:text-white mt-0.5 block">{analytics.weeklyAvg}</span>
-                  </div>
-                  <div className="text-center">
-                    <span className="block text-[8px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-black">Peak Day</span>
-                    <span className="text-[10px] font-black text-lime-600 dark:text-lime-400 mt-0.5 block truncate" title={`${analytics.weeklyPeak.label}: ${analytics.weeklyPeak.count}`}>
-                      {analytics.weeklyPeak.count} ({analytics.weeklyPeak.label})
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200/50 dark:border-slate-800 col-span-2 sm:col-span-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Conversion Rate</span>
+                    <span className="text-xl font-black text-purple-600 dark:text-purple-400 mt-1 block">
+                      {analytics.conversionRate}%
                     </span>
                   </div>
                 </div>
+              </div>
 
-                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <span className="text-[10px] text-slate-400 font-semibold">MTD Total</span>
-                  <span className="text-sm font-black text-indigo-500 font-mono">{analytics.mtdLeads}</span>
+              {/* 2. Content & Social Media Mix (1 col) */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                      <span className="w-1.5 h-4 bg-purple-500 rounded-full" />
+                      Content Platforms
+                    </h3>
+                    <a
+                      href="/calendar-work"
+                      className="text-xs font-bold text-purple-600 dark:text-purple-400 flex items-center gap-1 hover:underline"
+                    >
+                      Calendar <ChevronRight size={14} />
+                    </a>
+                  </div>
+                  <p className="text-xs text-slate-400 mb-4">
+                    Active social media channels and upcoming scheduled posts.
+                  </p>
+
+                  <div className="space-y-3">
+                    {Object.entries(analytics.contentTypesMap).map(([type, count]) => {
+                      const meta = PLATFORM_COLORS[type] || PLATFORM_COLORS['other'];
+                      return (
+                        <div
+                          key={type}
+                          className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-800"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="w-7 h-7 rounded-xl bg-purple-600/10 text-purple-600 dark:text-purple-400 flex items-center justify-center font-black text-[10px]">
+                              {meta.icon}
+                            </span>
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                              {meta.name}
+                            </span>
+                          </div>
+                          <span className="font-mono font-bold text-xs px-2.5 py-0.5 rounded-full bg-white dark:bg-slate-700 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-600">
+                            {count} posts
+                          </span>
+                        </div>
+                      );
+                    })}
+
+                    {Object.keys(analytics.contentTypesMap).length === 0 && (
+                      <div className="py-8 text-center text-slate-400 text-xs italic">
+                        No calendar posts created yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800">
+                  <a
+                    href="/calendar-work"
+                    className="w-full py-2.5 px-4 rounded-xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/40 text-purple-600 dark:text-purple-400 font-bold text-xs flex items-center justify-center gap-2 transition"
+                  >
+                    <Plus size={14} />
+                    Plan New Content Post
+                  </a>
                 </div>
               </div>
             </div>
 
-            {/* ─── Course Interest + Course + Source ─── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* 3. Recent Marketing Leads & Deliverables Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-              {/* Course Interest Breakdown */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-6 shadow-sm">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 mb-5 flex items-center gap-2">
-                  <span className="w-1 h-5 bg-emerald-500 rounded-full" />
-                  Category Temperature
-                </h3>
-                {Object.keys(analytics.interestBreakdown).length === 0 ? (
-                  <p className="text-xs text-slate-400 text-center py-10">No lead categories yet.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {Object.entries(analytics.interestBreakdown)
-                      .sort((a, b) => b[1] - a[1])
-                      .map(([interest, count]) => {
-                        const max = Math.max(...Object.values(analytics.interestBreakdown), 1);
-                        const pct = Math.round((count / max) * 100);
-                        const totalPct = analytics.total > 0 ? Math.round((count / analytics.total) * 100) : 0;
-                        const colors = INTEREST_COLORS[interest] || { bar: 'from-slate-500 to-gray-400', dot: 'bg-slate-400' };
+              {/* Recent Inquiries */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                    <span className="w-1.5 h-4 bg-blue-500 rounded-full" />
+                    Latest Client Leads
+                  </h3>
+                  <a href="/client-leads" className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+                    All Leads <ChevronRight size={14} />
+                  </a>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                        <th className="pb-2.5">Lead Name</th>
+                        <th className="pb-2.5">Contact</th>
+                        <th className="pb-2.5">Source</th>
+                        <th className="pb-2.5">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
+                      {clientLeads.slice(0, 5).map(lead => {
+                        const sColor = STATUS_COLORS[lead.status] || STATUS_COLORS['New'];
                         return (
-                          <div key={interest}>
-                            <div className="flex items-center justify-between text-xs mb-1 px-1">
-                              <span className="font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                                <span className={`w-2 h-2 rounded-full ${colors.dot}`} />
-                                {interest}
+                          <tr key={lead._id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition">
+                            <td className="py-3 font-bold text-slate-800 dark:text-white">
+                              {lead.leadName || 'Unnamed Lead'}
+                            </td>
+                            <td className="py-3 text-slate-500 text-[11px]">
+                              {lead.phone || lead.email || '—'}
+                            </td>
+                            <td className="py-3 text-[10px] font-bold uppercase text-slate-400">
+                              {lead.source || 'Marketing'}
+                            </td>
+                            <td className="py-3">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${sColor.badge}`}>
+                                {lead.status || 'New'}
                               </span>
-                              <span className="font-mono font-bold text-slate-800 dark:text-white">{count} <span className="text-slate-400 font-normal">({totalPct}%)</span></span>
-                            </div>
-                            <div className="w-full bg-slate-100 dark:bg-slate-800 h-5 rounded-lg overflow-hidden">
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${Math.max(pct, 3)}%` }}
-                                transition={{ duration: 0.7 }}
-                                className={`h-full bg-gradient-to-r ${colors.bar} rounded-lg`}
-                              />
-                            </div>
-                          </div>
+                            </td>
+                          </tr>
                         );
                       })}
-                  </div>
-                )}
+                      {clientLeads.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="py-8 text-center text-slate-400 italic">
+                            No client leads recorded. Click "Add Lead" to record inquiries.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
-              {/* Course Distribution */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-6 shadow-sm">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 mb-5 flex items-center gap-2">
-                  <span className="w-1 h-5 bg-indigo-500 rounded-full" />
-                  Course Distribution
-                </h3>
-                {Object.keys(analytics.courseBreakdown).length === 0 ? (
-                  <p className="text-xs text-slate-400 text-center py-10">No course statistics yet.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {Object.entries(analytics.courseBreakdown)
-                      .sort((a, b) => b[1] - a[1])
-                      .map(([course, count]) => {
-                        const max = Math.max(...Object.values(analytics.courseBreakdown), 1);
-                        const pct = Math.round((count / max) * 100);
-                        const totalPct = analytics.total > 0 ? Math.round((count / analytics.total) * 100) : 0;
-                        return (
-                          <div key={course}>
-                            <div className="flex items-center justify-between text-xs mb-1 px-1">
-                              <span className="font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                                <span className="w-2 h-2 rounded-full bg-indigo-500" />
-                                {course}
-                              </span>
-                              <span className="font-mono font-bold text-slate-800 dark:text-white">{count} <span className="text-slate-400 font-normal">({totalPct}%)</span></span>
-                            </div>
-                            <div className="w-full bg-slate-100 dark:bg-slate-800 h-5 rounded-lg overflow-hidden">
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${Math.max(pct, 3)}%` }}
-                                transition={{ duration: 0.7 }}
-                                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg"
-                              />
-                            </div>
+              {/* Upcoming Scheduled Posts */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                    <span className="w-1.5 h-4 bg-pink-500 rounded-full" />
+                    Content Calendar Schedule
+                  </h3>
+                  <a href="/calendar-work" className="text-xs font-bold text-pink-600 dark:text-pink-400 hover:underline flex items-center gap-1">
+                    Full Calendar <ChevronRight size={14} />
+                  </a>
+                </div>
+
+                <div className="space-y-3">
+                  {calendarWorks.slice(0, 4).map(work => {
+                    const pMeta = PLATFORM_COLORS[work.contentType] || PLATFORM_COLORS['other'];
+                    const dateFormatted = work.postingDate
+                      ? new Date(work.postingDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+                      : 'Unscheduled';
+                    return (
+                      <div
+                        key={work._id}
+                        className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-800"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className={`px-2 py-1 rounded-xl text-[10px] font-black border ${pMeta.bg}`}>
+                            {pMeta.icon}
+                          </span>
+                          <div>
+                            <h4 className="text-xs font-bold text-slate-800 dark:text-white line-clamp-1">
+                              {work.title || 'Social Post'}
+                            </h4>
+                            <p className="text-[10px] text-slate-400 mt-0.5">
+                              Status: <span className="capitalize">{work.workStatus || 'draft'}</span>
+                            </p>
                           </div>
-                        );
-                      })}
-                  </div>
-                )}
+                        </div>
+
+                        <div className="text-right">
+                          <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">
+                            {dateFormatted}
+                          </span>
+                          <span className="text-[9px] font-semibold text-slate-400 uppercase">
+                            {work.postingStatus || 'pending'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {calendarWorks.length === 0 && (
+                    <div className="py-8 text-center text-slate-400 text-xs italic">
+                      No campaign posts scheduled. Click "Calendar" to add schedule.
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Source Attribution */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-6 shadow-sm">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 mb-5 flex items-center gap-2">
-                  <span className="w-1 h-5 bg-violet-500 rounded-full" />
-                  Source Attribution
-                </h3>
-                {Object.keys(analytics.sourceBreakdown).length === 0 ? (
-                  <p className="text-xs text-slate-400 text-center py-10">No source data yet.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {Object.entries(analytics.sourceBreakdown)
-                      .sort((a, b) => b[1] - a[1])
-                      .map(([source, count]) => {
-                        const max = Math.max(...Object.values(analytics.sourceBreakdown), 1);
-                        const pct = Math.round((count / max) * 100);
-                        const totalPct = analytics.total > 0 ? Math.round((count / analytics.total) * 100) : 0;
-                        const colors = SOURCE_COLORS[source] || { bar: 'from-slate-500 to-gray-400', dot: 'bg-slate-400' };
-                        return (
-                          <div key={source}>
-                            <div className="flex items-center justify-between text-xs mb-1 px-1">
-                              <span className="font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                                <span className={`w-2 h-2 rounded-full ${colors.dot}`} />
-                                {source}
-                              </span>
-                              <span className="font-mono font-bold text-slate-800 dark:text-white">{count} <span className="text-slate-400 font-normal">({totalPct}%)</span></span>
-                            </div>
-                            <div className="w-full bg-slate-100 dark:bg-slate-800 h-5 rounded-lg overflow-hidden">
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${Math.max(pct, 3)}%` }}
-                                transition={{ duration: 0.7 }}
-                                className={`h-full bg-gradient-to-r ${colors.bar} rounded-lg`}
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                )}
-              </div>
             </div>
+          </div>
+        )}
 
-            {/* ─── Recent Leads Table ─── */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-5">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                  <span className="w-1 h-5 bg-amber-500 rounded-full" />
-                  Recent Leads
-                </h3>
-                <button onClick={() => window.location.href = '/leads'}
-                  className="text-[10px] text-indigo-500 font-bold uppercase tracking-wider hover:text-indigo-400 cursor-pointer flex items-center gap-1 transition">
-                  View All <ChevronRight size={12} />
-                </button>
+        {/* ─── TAB 2: CLIENT LEADS CRM ─── */}
+        {activeTab === 'leads' && (
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Client Leads & Inquiries CRM
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Search and manage inbound marketing inquiries and potential clients.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-2.5 text-slate-400" size={15} />
+                    <input
+                      type="text"
+                      placeholder="Search lead or phone..."
+                      value={leadSearch}
+                      onChange={(e) => setLeadSearch(e.target.value)}
+                      className="pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none w-56"
+                    />
+                  </div>
+
+                  <select
+                    value={leadStatusFilter}
+                    onChange={(e) => setLeadStatusFilter(e.target.value)}
+                    className="py-2 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="new">New</option>
+                    <option value="contacted">Contacted</option>
+                    <option value="follow up">Follow Up</option>
+                    <option value="interested">Interested</option>
+                    <option value="converted">Converted</option>
+                    <option value="lost">Lost</option>
+                  </select>
+
+                  <a
+                    href="/client-leads"
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5"
+                  >
+                    <Plus size={14} /> Add Lead
+                  </a>
+                </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+              {/* Table */}
+              <div className="overflow-x-auto pt-2">
+                <table className="w-full text-left">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200/60 dark:border-slate-800">
-                      <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Lead Name</th>
-                      <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Contact</th>
-                      <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Course Interest</th>
-                      <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Course</th>
-                      <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Source</th>
-                      <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</th>
-                      <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Created</th>
+                    <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                      <th className="pb-3">Lead Name</th>
+                      <th className="pb-3">Phone</th>
+                      <th className="pb-3">Email</th>
+                      <th className="pb-3">Source</th>
+                      <th className="pb-3">Meeting Status</th>
+                      <th className="pb-3">Status</th>
+                      <th className="pb-3 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {analytics.recentLeads.map(lead => {
-                      const interest = (lead.interestedService || '').trim().toUpperCase();
-                      const iColors = INTEREST_COLORS[interest];
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
+                    {filteredClientLeads.map(lead => {
+                      const sColor = STATUS_COLORS[lead.status] || STATUS_COLORS['New'];
                       return (
-                        <tr key={lead.id || lead._id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition">
-                          <td className="px-5 py-3.5">
-                            <span className="text-xs font-semibold text-slate-800 dark:text-white">{lead.leadName}</span>
-                            {lead.companyName && (
-                              <span className="block text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
-                                <Briefcase size={9} /> {lead.companyName}
-                              </span>
-                            )}
+                        <tr key={lead._id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition">
+                          <td className="py-3.5 font-bold text-slate-900 dark:text-white">
+                            {lead.leadName || 'Unnamed'}
                           </td>
-                          <td className="px-5 py-3.5 text-xs">
-                            <div className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
-                              <Phone size={10} className="text-slate-400" /> {lead.phone}
-                            </div>
+                          <td className="py-3.5 font-mono text-slate-600 dark:text-slate-300">
+                            {lead.phone || '—'}
                           </td>
-                          <td className="px-5 py-3.5">
-                            {interest ? (
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${iColors ? `${iColors.bg} ${iColors.text}` : 'bg-slate-100 text-slate-600'}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${iColors?.dot || 'bg-slate-400'}`} />
-                                {interest}
-                              </span>
-                            ) : <span className="text-[10px] text-slate-400 italic">—</span>}
+                          <td className="py-3.5 text-slate-500">
+                            {lead.email || '—'}
                           </td>
-                          <td className="px-5 py-3.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                            {lead.course || <span className="text-[10px] text-slate-400 italic">—</span>}
+                          <td className="py-3.5">
+                            <span className="text-[10px] font-bold uppercase text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                              {lead.source || 'MARKETING'}
+                            </span>
                           </td>
-                          <td className="px-5 py-3.5 text-[10px] font-semibold text-slate-600 dark:text-slate-400 uppercase">{lead.source || '—'}</td>
-                          <td className="px-5 py-3.5">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                              lead.status === 'Converted' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                              lead.status === 'Lost' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' :
-                              'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                          <td className="py-3.5">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                              String(lead.clientMeetingFixed).toLowerCase() === 'yes'
+                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+                                : 'bg-slate-100 text-slate-500 dark:bg-slate-800'
                             }`}>
+                              Meeting: {lead.clientMeetingFixed || 'Pending'}
+                            </span>
+                          </td>
+                          <td className="py-3.5">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${sColor.badge}`}>
                               {lead.status || 'New'}
                             </span>
                           </td>
-                          <td className="px-5 py-3.5 text-[10px] text-slate-500">
-                            {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                          <td className="py-3.5 text-right">
+                            <a
+                              href="/client-leads"
+                              className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+                            >
+                              Manage
+                            </a>
                           </td>
                         </tr>
                       );
                     })}
+                    {filteredClientLeads.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="py-12 text-center text-slate-400 italic">
+                          No matching client leads found.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
-          </>
-        )}
-
-        {!analytics && !loading && (
-          <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm text-center">
-            <Activity className="text-slate-300 dark:text-slate-700 mb-4" size={48} />
-            <h3 className="text-base font-bold text-slate-700 dark:text-slate-300">No leads data available</h3>
-            <p className="text-xs text-slate-400 mt-1">Add leads to see analytics here.</p>
           </div>
         )}
+
+        {/* ─── TAB 3: CONTENT & CAMPAIGN CALENDAR ─── */}
+        {activeTab === 'calendar' && (
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Social Media & Content Calendar
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Plan, review, and track digital creative assets and social publishing schedules.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <select
+                    value={calendarFilter}
+                    onChange={(e) => setCalendarFilter(e.target.value)}
+                    className="py-2 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer"
+                  >
+                    <option value="all">All Platforms</option>
+                    <option value="facebook">Facebook</option>
+                    <option value="instagram">Instagram</option>
+                    <option value="linkedin">LinkedIn</option>
+                    <option value="youtube">YouTube</option>
+                  </select>
+
+                  <a
+                    href="/calendar-work"
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5"
+                  >
+                    <Plus size={14} /> Schedule Post
+                  </a>
+                </div>
+              </div>
+
+              {/* Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredCalendarWorks.map(work => {
+                  const pMeta = PLATFORM_COLORS[work.contentType] || PLATFORM_COLORS['other'];
+                  const workDate = work.workDate ? new Date(work.workDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—';
+                  const postDate = work.postingDate ? new Date(work.postingDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—';
+
+                  return (
+                    <div
+                      key={work._id}
+                      className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800 flex flex-col justify-between hover:shadow-md transition"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black border ${pMeta.bg}`}>
+                            {pMeta.name}
+                          </span>
+                          <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                            {work.workStatus || 'draft'}
+                          </span>
+                        </div>
+
+                        <h4 className="text-sm font-bold text-slate-900 dark:text-white line-clamp-2">
+                          {work.title || 'Untitled Post'}
+                        </h4>
+                        {work.description && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                            {work.description}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="mt-5 pt-4 border-t border-slate-200/50 dark:border-slate-700/60 flex items-center justify-between text-xs">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">Posting Date</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">{postDate}</span>
+                        </div>
+                        <a
+                          href="/calendar-work"
+                          className="font-bold text-purple-600 dark:text-purple-400 text-xs hover:underline flex items-center gap-1"
+                        >
+                          Details <ExternalLink size={12} />
+                        </a>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {filteredCalendarWorks.length === 0 && (
+                  <div className="col-span-full py-16 text-center text-slate-400 text-xs italic">
+                    No content calendar posts found matching your criteria.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── TAB 4: PROJECTS & CLIENT ACCOUNTS ─── */}
+        {activeTab === 'projects' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+              {/* Projects List */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      Marketing Projects & Campaigns
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Client deliverables and marketing campaign initiatives.
+                    </p>
+                  </div>
+                  <a href="/projects" className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                    View All
+                  </a>
+                </div>
+
+                <div className="space-y-3.5">
+                  {projects.map(proj => {
+                    const prog = Math.min(Math.max(Number(proj.progress) || 0, 0), 100);
+                    return (
+                      <div
+                        key={proj._id}
+                        className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                            {proj.projectName}
+                          </h4>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+                            {proj.status || 'Active'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+                          <span>Progress</span>
+                          <span className="font-bold text-slate-700 dark:text-slate-200">{prog}%</span>
+                        </div>
+
+                        <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                          <div
+                            className="bg-indigo-600 h-full rounded-full transition-all duration-500"
+                            style={{ width: `${prog}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {projects.length === 0 && (
+                    <div className="py-12 text-center text-slate-400 text-xs italic">
+                      No active marketing projects found.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Clients Directory */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      Client Brand Accounts
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Client company accounts associated with marketing efforts.
+                    </p>
+                  </div>
+                  <a href="/clients" className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                    View All
+                  </a>
+                </div>
+
+                <div className="space-y-3">
+                  {clients.map(client => (
+                    <div
+                      key={client._id}
+                      className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-black text-sm flex items-center justify-center">
+                          {(client.companyName || 'C').charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                            {client.companyName}
+                          </h4>
+                          <p className="text-xs text-slate-400">
+                            {client.clientName} • {client.industry || 'Business'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-slate-600 dark:text-slate-300 block">
+                          {client.phone || client.email || '—'}
+                        </span>
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">
+                          {client.status || 'Active'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {clients.length === 0 && (
+                    <div className="py-12 text-center text-slate-400 text-xs italic">
+                      No client accounts added yet.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+
 
       </div>
     </div>
   );
 };
 
-/* ─── KPI Card Component ─── */
-const KpiCard = ({ icon, label, value, sub, color }) => {
+/* ─── Reusable Metric Card ─── */
+const KpiCard = ({ icon, label, value, sub, color, link }) => {
   const colorMap = {
     indigo:  'from-indigo-500/15 to-indigo-500/5 border-indigo-500/20 text-indigo-500',
+    violet:  'from-purple-500/15 to-purple-500/5 border-purple-500/20 text-purple-500',
     cyan:    'from-cyan-500/15 to-cyan-500/5 border-cyan-500/20 text-cyan-500',
     amber:   'from-amber-500/15 to-amber-500/5 border-amber-500/20 text-amber-500',
     emerald: 'from-emerald-500/15 to-emerald-500/5 border-emerald-500/20 text-emerald-500',
-    violet:  'from-violet-500/15 to-violet-500/5 border-violet-500/20 text-violet-500',
-    sky:     'from-sky-500/15 to-sky-500/5 border-sky-500/20 text-sky-500',
-    rose:    'from-rose-500/15 to-rose-500/5 border-rose-500/20 text-rose-500',
   };
   const scheme = colorMap[color] || colorMap.indigo;
 
-  return (
+  const content = (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`bg-gradient-to-br ${scheme} border rounded-2xl p-4 relative overflow-hidden group hover:shadow-md transition-all`}
+      className={`bg-gradient-to-br ${scheme} border rounded-2xl p-4 relative overflow-hidden group hover:shadow-md transition-all cursor-pointer`}
     >
       <div className="flex items-center justify-between mb-2">
-        <span className="opacity-70">{icon}</span>
+        <span className="opacity-80">{icon}</span>
+        <ArrowUpRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
-      <div className="text-2xl font-black text-slate-900 dark:text-white leading-none">{value}</div>
-      <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mt-1">{label}</div>
-      {sub && <div className="text-[10px] font-bold text-emerald-500 mt-0.5">{sub} rate</div>}
+      <div className="text-2xl font-black text-slate-900 dark:text-white leading-none">
+        {value}
+      </div>
+      <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mt-1.5">
+        {label}
+      </div>
+      {sub && (
+        <div className="text-[10px] font-semibold text-slate-600 dark:text-slate-300 mt-1 truncate">
+          {sub}
+        </div>
+      )}
     </motion.div>
   );
+
+  return link ? <a href={link}>{content}</a> : content;
 };
 
 export default MarketingDashboard;

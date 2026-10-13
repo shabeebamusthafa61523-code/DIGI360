@@ -10,6 +10,7 @@ import MarketingDashboard from './pages/Marketing Dashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Attendance from './pages/Attendance';
+import StaffAttendance from './pages/StaffAttendance';
 import Todo from './pages/Todo';
 import Users from './pages/Users';
 import UserDetailPage from './pages/UserDetailPage';
@@ -192,6 +193,9 @@ function App() {
         <Route path="/lead-dashboard" element={<ProtectedRoute><MainLayout><LeadDashboard /></MainLayout></ProtectedRoute>} />
         <Route path="/marketing-dashboard" element={<ProtectedRoute><MainLayout><MarketingDashboard /></MainLayout></ProtectedRoute>} />
         <Route path="/attendance" element={<ProtectedRoute><MainLayout><Attendance /></MainLayout></ProtectedRoute>} />
+        <Route path="/staff-attendance" element={<ProtectedRoute><MainLayout><StaffAttendance /></MainLayout></ProtectedRoute>} />
+        <Route path="/attendance-logs" element={<ProtectedRoute><MainLayout><StaffAttendance /></MainLayout></ProtectedRoute>} />
+        <Route path="/attendance/staff" element={<ProtectedRoute><MainLayout><StaffAttendance /></MainLayout></ProtectedRoute>} />
         <Route path="/todo" element={<ProtectedRoute><MainLayout><RestrictedRoute><Todo /></RestrictedRoute></MainLayout></ProtectedRoute>} />
         <Route path="/users" element={<ProtectedRoute><MainLayout><RestrictedRoute><Users /></RestrictedRoute></MainLayout></ProtectedRoute>} />
         <Route path="/users/:userId" element={<ProtectedRoute><MainLayout><RestrictedRoute><UserDetailPage /></RestrictedRoute></MainLayout></ProtectedRoute>} />

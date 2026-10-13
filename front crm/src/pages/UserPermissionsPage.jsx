@@ -21,7 +21,6 @@ const getApiEndpoint = (path) => {
   }
   return `${API_BASE}/api/v1${cleanPath}`;
 };
-
 const UserPermissionsPage = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
@@ -130,6 +129,14 @@ const UserPermissionsPage = () => {
         'capital': '/accounts/capital',
         'purchase': '/accounts/purchase',
         'create invoice': '/accounts/create-invoice',
+        'daily operations os': '/daily-operations',
+        'daily operations': '/daily-operations',
+        'tl daily operations': '/tl-daily-operations',
+        'staff attendance': '/staff-attendance',
+        'attendance logs': '/staff-attendance',
+        'attendance': '/attendance',
+        'task assign': '/todo',
+        'todo': '/todo',
       };
 
       const extraAllowedPaths = new Set();

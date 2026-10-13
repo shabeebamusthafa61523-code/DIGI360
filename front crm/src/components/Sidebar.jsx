@@ -99,13 +99,23 @@ const menuItems = [
   // --- DASHBOARDS ---
   { icon: TrendingUp, label: 'Dashboard', path: '/dashboard', category: 'Dashboards', allowedRoles: ['0', '1', '2', '10', 'admin', 'superadmin', 'MD', 'COO', 'EXECUTIVE_DIRECTOR'], allowedDepartmentNames: ['hr', 'admin', 'management'] },
   { icon: UserCog, label: 'HR Dashboard', path: '/hr-dashboard', category: 'Dashboards', allowedDesignationNames: ['hr', 'recruiter'] },
-  { icon: Megaphone, label: 'Marketing Dashboard', path: '/marketing-dashboard', category: 'Dashboards', allowedRoles: ['1', '2', '3', '10', 'hr', 'admin', 'superadmin', 'marketing', 'manager', 'team_lead', 'teamlead', 'tl'], allowedDepartmentNames: ['marketing', 'digital'] },
+  { icon: Megaphone, label: 'Marketing Dashboard', path: '/marketing-dashboard', category: 'Dashboards' },
 
   // --- PEOPLE & HR ---
+  { 
+    icon: UserCheck, 
+    label: 'Staff Attendance', 
+    path: '/staff-attendance', 
+    category: 'People & HR',
+    allowedRoles: ['0', '1', '2', '3', '10', 'admin', 'superadmin', 'hr', 'manager', 'team_lead', 'teamlead', 'tl', 'md', 'coo', 'EXECUTIVE_DIRECTOR'], 
+    allowedDepartmentNames: ['hr', 'admin', 'management'],
+    allowedDesignationNames: ['hr', 'admin', 'manager', 'lead', 'team lead', 'tl', 'supervisor', 'hod']
+  },
   { icon: UserCheck, label: 'Recruitment', path: '/recruitment', category: 'People & HR', allowedRoles: ['0', '1', '2', '3', '10', 'hr', 'admin', 'superadmin', 'manager', 'team_lead', 'teamlead', 'recruiter'], allowedDesignationNames: ['hr', 'recruiter', 'admin', 'manager'] },
   { icon: Users, label: 'Users', path: '/users', category: 'People & HR', allowedRoles: ['1', '2', 'hr', 'admin'], allowedDepartmentNames: ['hr', 'admin'] },
   { icon: Building, label: 'Departments', path: '/departments', category: 'People & HR', allowedRoles: ['1', '2', 'hr', 'admin'] },
   { icon: ShieldCheck, label: 'Sidebar Permissions', path: '/sidebar-permissions', category: 'People & HR', allowedRoles: ['0', 'superadmin'], allowedDepartmentNames: ['hr', 'admin', 'hr/admin', 'hr & admin'] },
+  { icon: BookOpenCheck, label: 'Employee Training', path: '/hr/training', category: 'People & HR', allowedRoles: ['0', '1', '2', 'hr', 'admin', 'superadmin'], allowedDepartmentNames: ['hr', 'admin'] },
 
   // --- SALES & CRM ---
   { icon: Briefcase, label: 'Client Leads', path: '/client-leads', category: 'Sales & CRM', allowedRoles: ['1', '2', '10', 'hr', 'admin', 'superadmin', 'manager', 'team_lead', 'teamlead'] },
@@ -134,17 +144,16 @@ const menuItems = [
   { icon: TrendingUp, label: 'Income', path: '/accounts/income', category: 'Finance & Payroll', allowedRoles: ['0', '1', '2', '10', 'hr', 'admin', 'accountant', 'superadmin', 'MD', 'COO', 'EXECUTIVE_DIRECTOR'], allowedDepartmentNames: ['hr', 'admin', 'accounts', 'finance'], allowedDesignationNames: ['hr', 'recruiter', 'accountant', 'finance', 'accounts'] },
   { icon: Receipt, label: 'Payslips', path: '/payslips', category: 'Finance & Payroll', allowedRoles: ['0', '1', '2', '10', 'hr', 'admin', 'accountant', 'superadmin', 'MD', 'COO', 'EXECUTIVE_DIRECTOR'], allowedDepartmentNames: ['hr', 'admin', 'accounts', 'finance'], allowedDesignationNames: ['hr', 'recruiter', 'accountant', 'finance', 'accounts'] },
   { icon: CreditCard, label: 'Personal Payslip', path: '/my-payslip', category: 'Finance & Payroll' },
-
   // --- REPORTS ---
   { icon: Sparkles, label: 'AI Reports', path: '/ai-report', category: 'Reports' },
   { icon: Award, label: 'Performance Dashboard', path: '/performance-dashboard', category: 'Reports', allowedRoles: ['1', '2', '10', 'hr', 'admin', 'superadmin', 'manager', 'team_lead', 'teamlead', 'tl'] },
-  { icon: PieChart, label: 'Marketing Report', path: '/marketing-report', category: 'Reports', allowedDesignationNames: ['marketing', 'marketer', 'digital'] },
+  { icon: PieChart, label: 'Marketing Report', path: '/marketing-report', category: 'Reports', allowedRoles: ['0', '1', '2', 'hr', 'admin', 'superadmin'], allowedDesignationNames: ['marketing', 'marketer', 'digital'] },
   { icon: FileText, label: 'Daily Shift Report', path: '/daily-shift-report', category: 'Reports' },
 
   // --- DAILY OPERATIONS ---
   { icon: Clock, label: 'Daily Operations OS', path: '/daily-operations', category: 'Daily Operations' },
   { icon: UsersRound, label: 'TL Daily Operations', path: '/tl-daily-operations', category: 'Daily Operations', allowedRoles: ['1', '2', '10', 'hr', 'admin', 'superadmin', 'manager', 'team_lead', 'teamlead', 'tl'], allowedDesignationNames: ['team lead', 'teamlead', 'tl', 'lead', 'manager', 'supervisor', 'hod'] },
-  { icon: Clock, label: 'Attendance', path: '/attendance', category: 'Daily Operations', excludeRoles: ['1', '2', 'hr', 'admin'] },
+  { icon: Clock, label: 'Attendance', path: '/attendance', category: 'Daily Operations' },
   { icon: ListCheck, label: 'Task Assign', path: '/todo', category: 'Daily Operations' },
 ];
 
@@ -378,6 +387,11 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen })
           'daily operations os': '/daily-operations',
           'daily operations': '/daily-operations',
           'tl daily operations': '/tl-daily-operations',
+          'staff attendance': '/staff-attendance',
+          'attendance logs': '/staff-attendance',
+          'attendance': '/attendance',
+          'task assign': '/todo',
+          'todo': '/todo',
         };
         const extraAllowedPaths = [];
         for (const perm of allowedSet) {
@@ -393,6 +407,8 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen })
 
             const isParentAllowed = 
               item.path === '/leaves' ||
+              item.path === '/marketing-dashboard' ||
+              item.label === 'Marketing Dashboard' ||
               allowedSet.includes(itemLabelLower) || 
               allowedSet.includes(itemPathLower) ||
               extraAllowedPaths.includes(itemPathLower);
@@ -470,7 +486,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen })
       }
       
       const isPrivilegedUser = ['0', '1', '2', '10', 'admin', 'hr', 'superadmin', 'manager', 'team_lead', 'teamlead', 'tl', 'md'].includes(currentUserRole) || !!userObj.isTeamLead;
-      const DEFAULT_EMPLOYEE_LABELS = ['Dashboard', 'Task Assign', 'Notifications', 'Attendance', 'Leave Requests'];
+      const DEFAULT_EMPLOYEE_LABELS = ['Dashboard', 'Marketing Dashboard', 'Task Assign', 'Notifications', 'Attendance', 'Leave Requests', 'My LMS Learning', 'Employee Training'];
 
       const visible = menuItems.filter(item => {
         if (item.excludeRoles && item.excludeRoles.includes(currentUserRole)) {
@@ -486,7 +502,10 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen })
         if (item.isCommonDashboardFallback || item.isBasicReportFallback) {
           return false;
         }
-        if (item.label === 'Clients' || item.label === 'Projects' || item.label === 'Client Leads' || item.label === 'KPI Analytics' || item.label === 'Lead Dashboard' || item.label === 'Marketing Dashboard') {
+        if (item.label === 'Marketing Dashboard') {
+          return true;
+        }
+        if (item.label === 'Clients' || item.label === 'Projects' || item.label === 'Client Leads' || item.label === 'KPI Analytics' || item.label === 'Lead Dashboard') {
           return isPrivilegedUser;
         }
 

@@ -47,7 +47,6 @@ const ROLES = [
   { id: "2", name: "admin" },
   { id: "3", name: "employee" }
 ];
-
 const STATUS_META = {
   active: { label: 'Active', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-500/20 dark:text-emerald-400', dot: 'bg-emerald-500' },
   inactive: { label: 'Inactive', color: 'bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-500/20 dark:text-amber-400', dot: 'bg-amber-500' },

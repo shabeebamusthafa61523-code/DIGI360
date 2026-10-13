@@ -309,3 +309,21 @@ export const markUserAttendance = async (req, res) => {
     return res.status(500).json({ detail: error.message });
   }
 };
+
+export const getMyAttendanceHistory = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ detail: "Authentication required." });
+    }
+
+    const userId = req.user.id || req.user._id;
+    const records = await Attendance.find({ user_id: userId })
+      .sort({ date: -1 })
+      .limit(30);
+
+    return res.status(200).json(records.map(serializeAttendance));
+  } catch (err) {
+    console.error("Error in getMyAttendanceHistory:", err);
+    return res.status(500).json({ detail: "Server Error" });
+  }
+};
