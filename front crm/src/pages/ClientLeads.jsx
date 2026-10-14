@@ -278,9 +278,12 @@ export default function ClientLeads() {
     if (!currentUser) return false;
     const roleId = String(currentUser.role_id || currentUser.roleId || currentUser.role || '').toLowerCase().trim();
     const designation = String(currentUser.designation || currentUser.designationId?.name || currentUser.designation_id || '').toLowerCase().trim();
-    const isOps = designation.includes('operation') || designation.includes('ops');
-    return (['1', '2', 'admin', 'superadmin'].includes(roleId) || designation.includes('admin')) && !isOps;
-  }, [currentUser]);
+    const deptName = userDeptName;
+    const isOps = designation.includes('operation') || designation.includes('ops') || deptName.includes('operation') || deptName.includes('ops');
+    const isAdminUser = (['1', '2', 'admin', 'superadmin'].includes(roleId) || designation.includes('admin') || deptName.includes('admin')) && !isOps;
+    const isHrUser = ['1', 'hr'].includes(roleId) || designation.includes('hr') || deptName.includes('hr');
+    return isAdminUser || isHrUser;
+  }, [currentUser, userDeptName]);
 
   const isMarketing = useMemo(() => {
     if (!currentUser) return false;
@@ -323,16 +326,15 @@ export default function ClientLeads() {
   }, [currentUser, userDeptName, isAcademicCounselor]);
 
   const canEditLead = useMemo(() => {
-    if (isAdmin) return false;
     if (isMarketing) return false;
     return true;
-  }, [isAdmin, isMarketing]);
+  }, [isMarketing]);
 
   const canEditAssignedTo = useMemo(() => {
-    if (isAdmin) return false;
+    if (!currentUser) return false;
     if (isAcademicCounselor) return false;
-    return isOperationManager;
-  }, [isAdmin, isAcademicCounselor, isOperationManager]);
+    return isOperationManager || isAdmin;
+  }, [currentUser, isAcademicCounselor, isOperationManager, isAdmin]);
 
   const canDeleteLead = useMemo(() => {
     if (!currentUser) return true;

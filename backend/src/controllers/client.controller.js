@@ -1,6 +1,7 @@
 import Client from '../models/client.model.js';
 import ClientMeeting from '../models/clientMeeting.model.js';
 import ClientFollowup from '../models/clientFollowup.model.js';
+import ClientProposal from '../models/clientProposal.model.js';
 import Project from '../models/project.model.js';
 import ProjectDocument from '../models/projectDocument.model.js';
 import ProjectActivity from '../models/projectActivity.model.js';
@@ -158,13 +159,18 @@ export const getClientById = async (req, res) => {
       .populate('createdBy', 'name email avatar')
       .sort({ dueDate: 1 });
 
+    const proposals = await ClientProposal.find({ client: client._id })
+      .populate('createdBy', 'name email avatar')
+      .sort({ createdAt: -1 });
+
     return sendSuccess(res, 'Client details retrieved successfully', {
       client,
       projects,
       documents,
       activities,
       meetings,
-      followups
+      followups,
+      proposals
     });
   } catch (error) {
     console.error('getClientById Error:', error);
@@ -585,6 +591,113 @@ export const deleteClientFollowup = async (req, res) => {
     return sendSuccess(res, 'Follow-up deleted successfully', { id: followupId });
   } catch (error) {
     console.error('deleteClientFollowup Error:', error);
+    return sendError(res, error.message, 500);
+  }
+};
+
+// ==========================================
+// CLIENT PROPOSALS ENDPOINTS
+// ==========================================
+
+export const getClientProposals = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const client = await resolveClientDoc(id);
+    if (!client) {
+      return sendError(res, 'Client not found', 404);
+    }
+    const proposals = await ClientProposal.find({ client: client._id })
+      .populate('createdBy', 'name email avatar')
+      .sort({ createdAt: -1 });
+    return sendSuccess(res, 'Proposals retrieved successfully', proposals);
+  } catch (error) {
+    console.error('getClientProposals Error:', error);
+    return sendError(res, error.message, 500);
+  }
+};
+
+export const createClientProposal = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const client = await resolveClientDoc(id);
+    if (!client) {
+      return sendError(res, 'Client not found', 404);
+    }
+
+    const userId = req.user?.id || req.user?._id || req.user?.userId;
+    const count = await ClientProposal.countDocuments({ client: client._id });
+    const proposalNumber = req.body.proposalNumber || `PROP-${String(client.clientId || 'DIGI').toUpperCase()}-${String(count + 1).padStart(3, '0')}`;
+
+    const proposal = new ClientProposal({
+      ...req.body,
+      client: client._id,
+      proposalNumber,
+      clientName: req.body.clientName || client.companyName || client.clientName,
+      clientLogo: req.body.clientLogo || client.companyLogo || '',
+      createdBy: userId
+    });
+
+    await proposal.save();
+
+    // Log activity
+    try {
+      if (userId) {
+        await ProjectActivity.create({
+          client: client._id,
+          user: userId,
+          action: 'PROPOSAL_CREATED',
+          title: `Proposal Created: ${proposal.title || proposal.proposalNumber}`,
+          description: `Total: ${proposal.totalCost || 'N/A'}`
+        });
+      }
+    } catch (actErr) {}
+
+    return sendSuccess(res, 'Proposal created successfully', proposal, 201);
+  } catch (error) {
+    console.error('createClientProposal Error:', error);
+    return sendError(res, error.message, 500);
+  }
+};
+
+export const updateClientProposal = async (req, res) => {
+  try {
+    const { id, proposalId } = req.params;
+    const client = await resolveClientDoc(id);
+    if (!client) {
+      return sendError(res, 'Client not found', 404);
+    }
+
+    const proposal = await ClientProposal.findOne({ _id: proposalId, client: client._id });
+    if (!proposal) {
+      return sendError(res, 'Proposal not found', 404);
+    }
+
+    Object.assign(proposal, req.body);
+    await proposal.save();
+
+    return sendSuccess(res, 'Proposal updated successfully', proposal);
+  } catch (error) {
+    console.error('updateClientProposal Error:', error);
+    return sendError(res, error.message, 500);
+  }
+};
+
+export const deleteClientProposal = async (req, res) => {
+  try {
+    const { id, proposalId } = req.params;
+    const client = await resolveClientDoc(id);
+    if (!client) {
+      return sendError(res, 'Client not found', 404);
+    }
+
+    const proposal = await ClientProposal.findOneAndDelete({ _id: proposalId, client: client._id });
+    if (!proposal) {
+      return sendError(res, 'Proposal not found', 404);
+    }
+
+    return sendSuccess(res, 'Proposal deleted successfully', { id: proposalId });
+  } catch (error) {
+    console.error('deleteClientProposal Error:', error);
     return sendError(res, error.message, 500);
   }
 };
