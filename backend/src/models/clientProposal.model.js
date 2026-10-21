@@ -4,7 +4,7 @@ const clientProposalSchema = new mongoose.Schema({
   client: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Client',
-    required: true,
+    required: false,
     index: true
   },
   proposalNumber: {
@@ -112,7 +112,5 @@ const clientProposalSchema = new mongoose.Schema({
   }
 });
 
-clientProposalSchema.index({ client: 1, createdAt: -1 });
-
-const ClientProposal = mongoose.model('ClientProposal', clientProposalSchema);
-export default ClientProposal;
+export { clientProposalSchema };
+export default clientProposalSchema;

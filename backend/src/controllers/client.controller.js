@@ -1,7 +1,6 @@
 import Client from '../models/client.model.js';
 import ClientMeeting from '../models/clientMeeting.model.js';
 import ClientFollowup from '../models/clientFollowup.model.js';
-import ClientProposal from '../models/clientProposal.model.js';
 import Project from '../models/project.model.js';
 import ProjectDocument from '../models/projectDocument.model.js';
 import ProjectActivity from '../models/projectActivity.model.js';
@@ -159,9 +158,7 @@ export const getClientById = async (req, res) => {
       .populate('createdBy', 'name email avatar')
       .sort({ dueDate: 1 });
 
-    const proposals = await ClientProposal.find({ client: client._id })
-      .populate('createdBy', 'name email avatar')
-      .sort({ createdAt: -1 });
+    const proposals = (client.proposals || []).slice().sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
     return sendSuccess(res, 'Client details retrieved successfully', {
       client,
@@ -606,9 +603,9 @@ export const getClientProposals = async (req, res) => {
     if (!client) {
       return sendError(res, 'Client not found', 404);
     }
-    const proposals = await ClientProposal.find({ client: client._id })
-      .populate('createdBy', 'name email avatar')
-      .sort({ createdAt: -1 });
+    const proposals = (client.proposals || []).slice().sort(
+      (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+    );
     return sendSuccess(res, 'Proposals retrieved successfully', proposals);
   } catch (error) {
     console.error('getClientProposals Error:', error);
@@ -625,19 +622,26 @@ export const createClientProposal = async (req, res) => {
     }
 
     const userId = req.user?.id || req.user?._id || req.user?.userId;
-    const count = await ClientProposal.countDocuments({ client: client._id });
+    const count = (client.proposals || []).length;
     const proposalNumber = req.body.proposalNumber || `PROP-${String(client.clientId || 'DIGI').toUpperCase()}-${String(count + 1).padStart(3, '0')}`;
 
-    const proposal = new ClientProposal({
+    const newProposal = {
+      _id: new mongoose.Types.ObjectId(),
       ...req.body,
       client: client._id,
       proposalNumber,
       clientName: req.body.clientName || client.companyName || client.clientName,
       clientLogo: req.body.clientLogo || client.companyLogo || '',
-      createdBy: userId
-    });
+      createdBy: userId,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
 
-    await proposal.save();
+    if (!Array.isArray(client.proposals)) {
+      client.proposals = [];
+    }
+    client.proposals.push(newProposal);
+    await client.save();
 
     // Log activity
     try {
@@ -646,13 +650,13 @@ export const createClientProposal = async (req, res) => {
           client: client._id,
           user: userId,
           action: 'PROPOSAL_CREATED',
-          title: `Proposal Created: ${proposal.title || proposal.proposalNumber}`,
-          description: `Total: ${proposal.totalCost || 'N/A'}`
+          title: `Proposal Created: ${newProposal.title || newProposal.proposalNumber}`,
+          description: `Total: ${newProposal.totalCost || 'N/A'}`
         });
       }
     } catch (actErr) {}
 
-    return sendSuccess(res, 'Proposal created successfully', proposal, 201);
+    return sendSuccess(res, 'Proposal created successfully', newProposal, 201);
   } catch (error) {
     console.error('createClientProposal Error:', error);
     return sendError(res, error.message, 500);
@@ -667,13 +671,20 @@ export const updateClientProposal = async (req, res) => {
       return sendError(res, 'Client not found', 404);
     }
 
-    const proposal = await ClientProposal.findOne({ _id: proposalId, client: client._id });
+    if (!Array.isArray(client.proposals)) {
+      return sendError(res, 'Proposal not found', 404);
+    }
+
+    const proposal = client.proposals.id 
+      ? client.proposals.id(proposalId) 
+      : client.proposals.find(p => String(p._id) === String(proposalId) || String(p.id) === String(proposalId));
+
     if (!proposal) {
       return sendError(res, 'Proposal not found', 404);
     }
 
-    Object.assign(proposal, req.body);
-    await proposal.save();
+    Object.assign(proposal, req.body, { updatedAt: new Date() });
+    await client.save();
 
     return sendSuccess(res, 'Proposal updated successfully', proposal);
   } catch (error) {
@@ -690,10 +701,22 @@ export const deleteClientProposal = async (req, res) => {
       return sendError(res, 'Client not found', 404);
     }
 
-    const proposal = await ClientProposal.findOneAndDelete({ _id: proposalId, client: client._id });
-    if (!proposal) {
+    if (!Array.isArray(client.proposals)) {
       return sendError(res, 'Proposal not found', 404);
     }
+
+    const initialLength = client.proposals.length;
+    if (client.proposals.pull) {
+      client.proposals.pull({ _id: proposalId });
+    } else {
+      client.proposals = client.proposals.filter(p => String(p._id) !== String(proposalId) && String(p.id) !== String(proposalId));
+    }
+
+    if (client.proposals.length === initialLength) {
+      return sendError(res, 'Proposal not found', 404);
+    }
+
+    await client.save();
 
     return sendSuccess(res, 'Proposal deleted successfully', { id: proposalId });
   } catch (error) {

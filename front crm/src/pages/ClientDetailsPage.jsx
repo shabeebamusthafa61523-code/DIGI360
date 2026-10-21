@@ -26,6 +26,8 @@ import EditClientModal from '../components/clients/EditClientModal';
 import ConfirmModal from '../components/ConfirmModal';
 import ClientProposalModal from '../components/clients/ClientProposalModal';
 import ProposalPdfTemplate from '../components/clients/ProposalPdfTemplate';
+import ProposalPreviewDoc from '../components/clients/ProposalPreviewDoc';
+import { exportProposalToPdf } from '../utils/proposalPdfUtils';
 import { Download, Sparkles, Share2, Printer, Loader2 } from 'lucide-react';
 
 const ClientDetailsPage = () => {
@@ -639,25 +641,28 @@ const ClientDetailsPage = () => {
     setActivePreviewProposal(prop);
     try {
       await new Promise(r => setTimeout(r, 250));
-      const element = document.getElementById('proposal-pdf-container');
+      const element = document.getElementById('proposal-document-export-root') || document.getElementById('proposal-pdf-container');
       if (!element) throw new Error("Proposal export template could not be loaded");
 
-      const html2pdfModule = await import('html2pdf.js');
-      const html2pdfInstance = html2pdfModule.default || html2pdfModule;
+      const clientClean = String(prop?.clientName || client?.companyName || 'Client').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const typeClean = String(prop?.proposalType || 'Proposal').replace(/[^a-zA-Z0-9_-]/g, '_');
 
-      const clientClean = String(prop.clientName || client?.companyName || 'Client').replace(/[^a-zA-Z0-9_-]/g, '_');
-      const typeClean = String(prop.proposalType || 'Proposal').replace(/[^a-zA-Z0-9_-]/g, '_');
-
-      const opt = {
-        margin: 0,
-        filename: `${clientClean}_${typeClean}_Proposal.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: 'px', format: [1120, 630], orientation: 'landscape', hotfixes: ['px_scaling'] },
-        pagebreak: { mode: ['css', 'legacy'] }
-      };
-
-      await html2pdfInstance().set(opt).from(element).save();
+      const isA4Doc = !!document.getElementById('proposal-document-export-root');
+      if (isA4Doc) {
+        await exportProposalToPdf(element, `${clientClean}_${typeClean}_Proposal.pdf`);
+      } else {
+        const html2pdfModule = await import('html2pdf.js');
+        const html2pdfInstance = html2pdfModule.default || html2pdfModule;
+        const opt = {
+          margin: 0,
+          filename: `${clientClean}_${typeClean}_Proposal.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: 'px', format: [1120, 630], orientation: 'landscape', hotfixes: ['px_scaling'] },
+          pagebreak: { mode: ['css', 'legacy'] }
+        };
+        await html2pdfInstance().set(opt).from(element).save();
+      }
       showToast("Proposal PDF downloaded successfully!", "success");
     } catch (err) {
       console.error("PDF generation failed:", err);
@@ -2127,55 +2132,68 @@ const ClientDetailsPage = () => {
         loading={proposalSubmitting}
       />
 
-      {/* Proposal Document Preview Modal */}
+      {/* Proposal Document Preview Modal - Clean White Background */}
       {isPreviewModalOpen && activePreviewProposal && createPortal(
-        <div className="fixed inset-0 z-[99999] bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-between p-4 overflow-y-auto">
-          {/* Top Preview Bar */}
-          <div className="max-w-6xl w-full flex items-center justify-between pb-4 border-b border-slate-800 text-white shrink-0">
-            <div className="flex items-center gap-3">
-              <span className="p-2 rounded-xl bg-violet-600/20 text-violet-400">
-                <FileText size={18} />
-              </span>
-              <div>
-                <h3 className="text-sm font-black uppercase text-white">
-                  {activePreviewProposal.title || 'Proposal Document Preview'}
-                </h3>
-                <span className="text-[11px] text-slate-400">
-                  {activePreviewProposal.clientName || client?.companyName} • {activePreviewProposal.proposalNumber}
+        <div className="fixed inset-0 z-[99999] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-5xl w-full flex flex-col max-h-[94vh] overflow-hidden my-auto">
+            {/* Top Preview Bar */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white shrink-0">
+              <div className="flex items-center gap-3">
+                <span className="p-2.5 rounded-xl bg-violet-50 text-violet-600">
+                  <FileText size={18} />
                 </span>
+                <div>
+                  <h3 className="text-sm font-black uppercase text-slate-900">
+                    {activePreviewProposal.title || 'Proposal Document Preview'}
+                  </h3>
+                  <span className="text-xs text-slate-500 font-medium">
+                    {activePreviewProposal.clientName || client?.companyName} • {activePreviewProposal.proposalNumber}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
+                  title="Print A4 Proposal"
+                >
+                  <Printer size={14} className="text-slate-500" />
+                  <span>Print</span>
+                </button>
+
+                <button
+                  disabled={isPdfGenerating}
+                  onClick={() => handleDownloadPdf(activePreviewProposal)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold shadow-lg shadow-violet-600/25 transition cursor-pointer disabled:opacity-50"
+                >
+                  {isPdfGenerating ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Exporting PDF...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download size={14} />
+                      <span>Download Formatted PDF</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setIsPreviewModalOpen(false)}
+                  className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition cursor-pointer ml-1"
+                >
+                  <X size={20} />
+                </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <button
-                disabled={isPdfGenerating}
-                onClick={() => handleDownloadPdf(activePreviewProposal)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold shadow-lg shadow-violet-600/30 transition cursor-pointer disabled:opacity-50"
-              >
-                {isPdfGenerating ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin" />
-                    <span>Exporting PDF...</span>
-                  </>
-                ) : (
-                  <>
-                    <Download size={14} />
-                    <span>Download Formatted PDF</span>
-                  </>
-                )}
-              </button>
-              <button
-                onClick={() => setIsPreviewModalOpen(false)}
-                className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition cursor-pointer"
-              >
-                <X size={20} />
-              </button>
+            {/* Document Content View - White Studio Canvas */}
+            <div className="flex-1 overflow-y-auto overflow-x-auto p-4 sm:p-8 bg-slate-50 flex justify-center items-start">
+              <ProposalPreviewDoc proposal={activePreviewProposal} client={client} isEditable={false} />
             </div>
-          </div>
-
-          {/* Document Content View */}
-          <div className="my-6 overflow-x-auto max-w-full rounded-2xl shadow-2xl border border-slate-800">
-            <ProposalPdfTemplate proposal={activePreviewProposal} client={client} />
           </div>
         </div>,
         document.body
@@ -2184,7 +2202,7 @@ const ClientDetailsPage = () => {
       {/* Hidden PDF Generation Container for Direct Export */}
       <div style={{ position: 'absolute', left: '-99999px', top: 0 }}>
         {activePreviewProposal && (
-          <ProposalPdfTemplate proposal={activePreviewProposal} client={client} />
+          <ProposalPreviewDoc proposal={activePreviewProposal} client={client} isEditable={false} />
         )}
       </div>
 

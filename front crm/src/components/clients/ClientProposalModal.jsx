@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, Upload, Image as ImageIcon, Sparkles, Plus, Trash2, Check, FileText, 
-  Settings, Target, Globe, Layers, DollarSign, Shield
+  Settings, Target, Globe, Layers, DollarSign, Shield, LayoutDashboard, ArrowRight, Eye,
+  Download, Printer, Loader2
 } from 'lucide-react';
+import ProposalPreviewDoc from './ProposalPreviewDoc';
+import { exportProposalToPdf } from '../../utils/proposalPdfUtils';
 
 export default function ClientProposalModal({ 
   isOpen, 
@@ -12,7 +15,8 @@ export default function ClientProposalModal({
   client = null, 
   loading = false 
 }) {
-  const [activeSection, setActiveSection] = useState('branding');
+  const [activeSection, setActiveSection] = useState('overview');
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const defaultObjectives = [
     { title: '01. BRAND POSITIONING', description: `Position ${client?.companyName || 'the brand'} as a reliable and trusted automotive spare parts source in the region.` },
@@ -261,6 +265,29 @@ export default function ClientProposalModal({
     setFormData(prev => ({ ...prev, termsAndConditions: prev.termsAndConditions.filter((_, i) => i !== index) }));
   };
 
+  const handleDownloadPdf = async () => {
+    setIsExportingPdf(true);
+    try {
+      const element = document.getElementById('proposal-document-export-root');
+      if (!element) throw new Error("Proposal preview document not found");
+
+      const clientClean = String(formData.clientName || client?.companyName || 'Client').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const typeClean = String(formData.proposalType || 'Proposal').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const filename = `${clientClean}_${typeClean}_Proposal.pdf`;
+
+      await exportProposalToPdf(element, filename);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      alert("Failed to export PDF: " + err.message);
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit(formData);
@@ -268,7 +295,7 @@ export default function ClientProposalModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-4xl w-full my-8 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+      <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full my-8 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden transition-all duration-200 ${activeSection === 'overview' ? 'max-w-5xl' : 'max-w-4xl'}`}>
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
@@ -296,6 +323,7 @@ export default function ClientProposalModal({
         {/* Section Navigation Tabs */}
         <div className="flex items-center gap-1 px-6 pt-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 overflow-x-auto shrink-0">
           {[
+            { id: 'overview', label: 'Overview', icon: LayoutDashboard },
             { id: 'branding', label: '1. Logo & Proposal Type', icon: ImageIcon },
             { id: 'goals', label: '2. Goals & Objectives', icon: Target },
             { id: 'platforms', label: '3. Platforms & Benefits', icon: Globe },
@@ -324,6 +352,112 @@ export default function ClientProposalModal({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* 0. PROPOSAL OVERVIEW SECTION - READY TO PRINT */}
+          {activeSection === 'overview' && (
+            <div className="space-y-4">
+              {/* Ready-to-Print Top Action Header */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-violet-900/10 via-purple-900/10 to-blue-900/10 border border-violet-500/20">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-violet-600 text-white shadow-md shadow-violet-600/20">
+                    <LayoutDashboard size={18} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-black uppercase text-slate-900 dark:text-white tracking-wide">
+                        Ready-to-Print Proposal Document
+                      </h3>
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-black uppercase">
+                        A4 Single-Page Format
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Live interactive document matching executive print demo. Edits in other tabs synchronize instantly.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Print & Download Action Buttons */}
+                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+                  <button
+                    type="button"
+                    onClick={handlePrint}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition shadow-sm cursor-pointer"
+                    title="Print A4 document"
+                  >
+                    <Printer size={14} className="text-slate-500" />
+                    <span>Print</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleDownloadPdf}
+                    disabled={isExportingPdf}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold shadow-lg shadow-violet-600/25 transition cursor-pointer disabled:opacity-50"
+                  >
+                    {isExportingPdf ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        <span>Exporting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download size={14} />
+                        <span>Download PDF</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Status and quick navigation pill row */}
+              <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Status:
+                  </span>
+                  <select
+                    value={formData.status}
+                    onChange={e => setFormData({ ...formData, status: e.target.value })}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold uppercase text-violet-600 dark:text-violet-400 outline-none cursor-pointer"
+                  >
+                    <option value="Draft">Draft</option>
+                    <option value="Sent">Sent</option>
+                    <option value="Accepted">Accepted</option>
+                    <option value="Declined">Declined</option>
+                  </select>
+                </div>
+
+                <div className="text-[11px] text-slate-400 flex items-center gap-1">
+                  <span>💡 Click any section tab above to customize branding, copy, or pricing</span>
+                </div>
+              </div>
+
+              {/* Centered Document Preview Canvas */}
+              <div className="p-4 sm:p-6 rounded-2xl bg-slate-50 border border-slate-200/80 flex justify-center overflow-x-auto shadow-sm">
+                <ProposalPreviewDoc
+                  proposal={formData}
+                  client={client}
+                  isEditable={true}
+                  onUpdateField={(field, val) => setFormData(prev => ({ ...prev, [field]: val }))}
+                  onUpdateObjective={(idx, field, val) => handleObjectiveChange(idx, field, val)}
+                  onAddObjective={handleAddObjective}
+                  onRemoveObjective={handleRemoveObjective}
+                  onUpdateBenefit={(idx, val) => handleBenefitChange(idx, val)}
+                  onAddBenefit={handleAddBenefit}
+                  onRemoveBenefit={handleRemoveBenefit}
+                  onUpdateService={(idx, field, val) => handleServiceChange(idx, field, val)}
+                  onAddService={handleAddService}
+                  onRemoveService={handleRemoveService}
+                  onUpdateTerm={(idx, val) => handleTermChange(idx, val)}
+                  onAddTerm={handleAddTerm}
+                  onRemoveTerm={handleRemoveTerm}
+                  onAddPlatform={handleAddPlatform}
+                  onRemovePlatform={handleRemovePlatform}
+                />
+              </div>
+            </div>
+          )}
+
           {/* 1. BRANDING & LOGOS SECTION */}
           {activeSection === 'branding' && (
             <div className="space-y-6">
