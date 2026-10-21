@@ -163,7 +163,7 @@ export const userController = {
         queryFilter.role_id = { $nin: ['10', 10, '0', 0] };
       }
 
-      if (!isPrivileged && loggedInUserId) {
+      if (req.query.scope === 'department' && !isPrivileged && loggedInUserId) {
         const Department = (await import('../modules/departments/department.model.js')).default;
         const UserDepartment = (await import('../models/userDepartment.model.js')).default;
         

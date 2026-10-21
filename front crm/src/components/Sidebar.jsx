@@ -407,6 +407,8 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen })
 
             const isParentAllowed = 
               item.path === '/leaves' ||
+              item.path === '/todo' ||
+              item.label === 'Task Assign' ||
               item.path === '/marketing-dashboard' ||
               item.label === 'Marketing Dashboard' ||
               allowedSet.includes(itemLabelLower) || 
