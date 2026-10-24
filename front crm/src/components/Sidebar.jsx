@@ -157,7 +157,7 @@ const menuItems = [
   { icon: ListCheck, label: 'Task Assign', path: '/todo', category: 'Daily Operations' },
   { 
     icon: Coins, 
-    label: 'Task Payments', 
+    label: 'Employee Task Payments', 
     path: '/employee-task-payments', 
     category: 'Daily Operations', 
     allowedRoles: ['0', '1', '2', 'hr', 'admin', 'superadmin', 'manager', 'team_lead', 'teamlead', 'tl', 'md'], 
@@ -402,6 +402,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen })
           'todo': '/todo',
           'task payments': '/employee-task-payments',
           'employee task payments': '/employee-task-payments',
+          'employee-task-payments': '/employee-task-payments',
         };
         const extraAllowedPaths = [];
         for (const perm of allowedSet) {
