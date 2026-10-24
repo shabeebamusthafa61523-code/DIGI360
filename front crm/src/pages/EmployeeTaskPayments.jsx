@@ -4,6 +4,7 @@
 // ==========================================
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
@@ -189,6 +190,17 @@ export default function EmployeeTaskPayments() {
   useEffect(() => {
     fetchPayments();
   }, [fetchPayments]);
+
+  // Lock background viewport scrolling when task detail modal is open
+  useEffect(() => {
+    if (isDetailOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isDetailOpen]);
 
   // Available months: from backend or derived from loaded employee tasks
   const displayMonths = useMemo(() => {
@@ -717,26 +729,27 @@ export default function EmployeeTaskPayments() {
         </div>
       </div>
 
-      {/* TASK BREAKDOWN MODAL */}
+      {/* TASK BREAKDOWN MODAL IN VIEWPORT */}
       <AnimatePresence>
-        {isDetailOpen && selectedEmployee && (
+        {isDetailOpen && selectedEmployee && typeof document !== 'undefined' && createPortal(
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+            className="fixed inset-0 z-[99999] bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-hidden"
             onClick={() => setIsDetailOpen(false)}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ duration: 0.2 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-3xl w-full p-6 shadow-2xl space-y-5 my-8 max-h-[90vh] flex flex-col"
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-3xl w-full h-[88vh] max-h-[88vh] flex flex-col shadow-2xl overflow-hidden my-auto"
             >
-              {/* Modal Header */}
-              <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-                <div className="flex items-center gap-3">
+              {/* Modal Header (Fixed in Viewport) */}
+              <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between shrink-0 bg-slate-50/60 dark:bg-slate-950/40">
+                <div className="flex items-center gap-3 min-w-0">
                   <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-black text-lg overflow-hidden shrink-0">
                     {selectedEmployee.employee?.avatar || selectedEmployee.employee?.profile_image ? (
                       <img
@@ -749,54 +762,71 @@ export default function EmployeeTaskPayments() {
                       (selectedEmployee.employee?.name || 'U').charAt(0).toUpperCase()
                     )}
                   </div>
-                  <div>
-                    <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                  <div className="min-w-0">
+                    <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white truncate">
                       {selectedEmployee.employee?.name}
                     </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {selectedEmployee.employee?.designation || selectedEmployee.employee?.role || 'Staff'}
-                    </p>
+                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                      <span>{selectedEmployee.employee?.designation || selectedEmployee.employee?.role || 'Staff'}</span>
+                      {selectedEmployee.employee?.employeeId && (
+                        <>
+                          <span>•</span>
+                          <span className="font-mono text-[11px] font-semibold">{selectedEmployee.employee.employeeId}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 <button
                   onClick={() => setIsDetailOpen(false)}
-                  className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer"
+                  className="p-2 rounded-full hover:bg-slate-200/60 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer shrink-0 ml-2"
+                  title="Close"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Employee Summary Mini Cards */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-center">
-                  <span className="text-[10px] font-bold uppercase text-slate-400">Total Tasks</span>
-                  <p className="text-lg font-black text-slate-900 dark:text-white mt-0.5">
-                    {selectedEmployee.totalTasks}
-                  </p>
-                </div>
-                <div className="p-3 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/40 text-center">
-                  <span className="text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400">Completed Payout</span>
-                  <p className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
-                    {formatINR(selectedEmployee.completedPayment)}
-                  </p>
-                </div>
-                <div className="p-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/50 dark:border-indigo-800/40 text-center">
-                  <span className="text-[10px] font-bold uppercase text-indigo-600 dark:text-indigo-400">Total Payout</span>
-                  <p className="text-lg font-black text-indigo-600 dark:text-indigo-400 mt-0.5">
-                    {formatINR(selectedEmployee.totalPayment)}
-                  </p>
+              {/* Employee Summary Mini Cards (Shrink-0) */}
+              <div className="p-4 sm:p-6 pb-2 shrink-0">
+                <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-center">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Tasks</span>
+                    <p className="text-base sm:text-lg font-black text-slate-900 dark:text-white mt-0.5">
+                      {selectedEmployee.totalTasks}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/40 text-center">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Completed Payout</span>
+                    <p className="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                      {formatINR(selectedEmployee.completedPayment)}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/50 dark:border-indigo-800/40 text-center">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Total Payout</span>
+                    <p className="text-base sm:text-lg font-black text-indigo-600 dark:text-indigo-400 mt-0.5">
+                      {formatINR(selectedEmployee.totalPayment)}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              {/* Task List */}
-              <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                  Assigned Task Breakdown ({selectedEmployee.tasks?.length || 0})
-                </h4>
+              {/* Task List (Flex-1, min-h-0, scrollable strictly within viewport) */}
+              <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-2 space-y-2.5">
+                <div className="flex items-center justify-between pb-1">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    Assigned Task Breakdown ({selectedEmployee.tasks?.length || 0})
+                  </h4>
+                  <span className="text-[11px] font-bold text-slate-400">
+                    Scroll to see all
+                  </span>
+                </div>
 
-                {selectedEmployee.tasks?.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-6 text-center">No tasks assigned.</p>
+                {(!selectedEmployee.tasks || selectedEmployee.tasks.length === 0) ? (
+                  <div className="py-12 text-center text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+                    <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                    <p className="text-xs font-semibold">No tasks assigned to this employee.</p>
+                  </div>
                 ) : (
                   selectedEmployee.tasks.map((task) => {
                     const isDone = ['completed', 'done'].includes(task.status);
@@ -806,7 +836,7 @@ export default function EmployeeTaskPayments() {
                         className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 hover:border-emerald-500/40 transition"
                       >
                         <div className="space-y-1 min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span
                               className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border ${
                                 isDone
@@ -850,8 +880,8 @@ export default function EmployeeTaskPayments() {
                 )}
               </div>
 
-              {/* Modal Footer */}
-              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              {/* Modal Footer (Fixed in Viewport) */}
+              <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0 bg-slate-50/60 dark:bg-slate-950/40">
                 <button
                   onClick={() => {
                     setIsDetailOpen(false);
@@ -864,13 +894,14 @@ export default function EmployeeTaskPayments() {
                 </button>
                 <button
                   onClick={() => setIsDetailOpen(false)}
-                  className="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 transition cursor-pointer"
+                  className="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
                 >
                   Close
                 </button>
               </div>
             </motion.div>
-          </motion.div>
+          </motion.div>,
+          document.body
         )}
       </AnimatePresence>
     </div>
