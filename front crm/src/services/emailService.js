@@ -130,10 +130,12 @@ const wrapHtmlTemplate = (content, subjectStr, senderNameStr) => {
  */
 export const sendEmail = async ({ to, subject, htmlContent, textContent }) => {
   if (!apiKey) {
-    throw new Error('VITE_BREVO_API_KEY is not set in frontend .env file.');
+    console.warn('⚠️ Brevo email notification skipped: VITE_BREVO_API_KEY is not set in frontend .env file.');
+    return { success: false, skipped: true, message: 'VITE_BREVO_API_KEY is not set in frontend .env file.' };
   }
   if (!senderAddress || senderAddress === 'no-reply@example.com') {
-    throw new Error('VITE_EMAIL_SENDER_ADDRESS is not set or using default in .env file.');
+    console.warn('⚠️ Brevo email notification skipped: VITE_EMAIL_SENDER_ADDRESS is not set.');
+    return { success: false, skipped: true, message: 'VITE_EMAIL_SENDER_ADDRESS is not set in frontend .env file.' };
   }
 
   const recipients = formatRecipients(to);

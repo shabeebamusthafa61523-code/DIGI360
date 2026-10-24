@@ -130,6 +130,7 @@ const TaskDueReminderModal = () => {
       }).finally(() => clearTimeout(timeoutId));
 
       if (!res.ok) {
+        if (res.status >= 500) return false;
         console.warn(`Error checking task due times: HTTP ${res.status}`);
         return false;
       }
