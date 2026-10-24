@@ -301,6 +301,29 @@ const Todo = () => {
   };
   const [currentUserId] = useState(getCurrentUserId);
 
+  const { user: liveUser } = useUser() || {};
+  const storedUser = useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('user')); } catch (e) { return null; }
+  }, []);
+  const currentUser = liveUser || storedUser;
+
+  // Privileged check: only Admins, HR, MD, Managers, Team Leads can view/modify task payment amounts
+  const canSeePayments = useMemo(() => {
+    if (!currentUser) return false;
+    const role = String(currentUser.role || '').toLowerCase().trim();
+    const roleId = String(currentUser.role_id || currentUser.roleId || '').trim();
+    const designation = String(currentUser.designation || '').toLowerCase().trim();
+
+    if (currentUser.isSuperAdmin === true || currentUser.is_super_admin === true || role === 'superadmin' || roleId === '0') {
+      return true;
+    }
+    const privilegedRoles = ['admin', 'hr', 'md', 'manager', 'lead', 'team_lead', 'teamlead', 'tl', 'supervisor', 'hod', 'director', 'coo', 'ceo', '1', '2'];
+    const hasPrivilegedRole = privilegedRoles.some(r => role.includes(r) || roleId === r);
+    const hasPrivilegedDesignation = ['lead', 'manager', 'head', 'hod', 'director', 'supervisor', 'hr', 'md', 'admin', 'coordinator'].some(d => designation.includes(d));
+
+    return hasPrivilegedRole || hasPrivilegedDesignation;
+  }, [currentUser]);
+
   const getAuthHeaders = useCallback(() => {
     const rawToken = localStorage.getItem('token');
     const cleanToken = rawToken ? rawToken.replace(/"/g, '') : '';
@@ -557,11 +580,18 @@ const fetchData = useCallback(async () => {
                                     {getUserDisplayName(task.assigned_to, users)}
                                   </span>
                                 </div>
-                                {task.image && (
-                                  <div className="p-1.5 rounded-lg bg-white-500/10 text-white-500 dark:text-indigo-400 border border-indigo-500/10">
-                                    <ImageIcon size={12} />
-                                  </div>
-                                )}
+                                <div className="flex items-center gap-1.5">
+                                  {canSeePayments && task.payment > 0 && (
+                                    <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800/60 shadow-2xs">
+                                      ₹{Number(task.payment).toLocaleString('en-IN')}
+                                    </span>
+                                  )}
+                                  {task.image && (
+                                    <div className="p-1.5 rounded-lg bg-white-500/10 text-white-500 dark:text-indigo-400 border border-indigo-500/10">
+                                      <ImageIcon size={12} />
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           )}
@@ -586,6 +616,7 @@ const fetchData = useCallback(async () => {
             users={users} refresh={fetchData} getAuthHeaders={getAuthHeaders} 
             designations={designations}
             currentUserId={currentUserId}
+            canSeePayments={canSeePayments}
           />
         )}
         {selectedTask && (
@@ -598,6 +629,7 @@ const fetchData = useCallback(async () => {
             API_BASE={API_BASE} // <--- ADD THIS LINE
             DESIGNATIONS={designations} 
             onPreviewFile={(f) => setPreviewFile(f)}
+            canSeePayments={canSeePayments}
           />
         )}
         {previewFile && (
@@ -609,10 +641,10 @@ const fetchData = useCallback(async () => {
 };
 
 // --- CREATE MODAL COMPONENT ---
-const CreateModal = ({ onClose, users, refresh, getAuthHeaders, designations, currentUserId }) => {
+const CreateModal = ({ onClose, users, refresh, getAuthHeaders, designations, currentUserId, canSeePayments }) => {
   const { showToast } = useToast();
 
-  const [form, setForm] = useState({ title: '', description: '', assigned_to: '', designation_id: '', dueDate: '', client: '', project: '', priority: 'medium' });
+  const [form, setForm] = useState({ title: '', description: '', assigned_to: '', designation_id: '', dueDate: '', client: '', project: '', priority: 'medium', payment: '', paymentStatus: 'unpaid' });
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [attachedLinks, setAttachedLinks] = useState([]);
   const [linkTitle, setLinkTitle] = useState('');
@@ -709,6 +741,12 @@ const CreateModal = ({ onClose, users, refresh, getAuthHeaders, designations, cu
     fd.append('designation_id', form.designation_id);
     fd.append('status', 'pending');
     fd.append('priority', form.priority || 'medium');
+    if (canSeePayments && form.payment !== undefined && form.payment !== '') {
+      fd.append('payment', form.payment);
+    }
+    if (canSeePayments && form.paymentStatus) {
+      fd.append('paymentStatus', form.paymentStatus);
+    }
     if (form.dueDate) fd.append('dueDate', toIsoDueDate(form.dueDate));
     if (form.client) fd.append('client', form.client);
     if (form.project) fd.append('project', form.project);
@@ -917,10 +955,10 @@ const CreateModal = ({ onClose, users, refresh, getAuthHeaders, designations, cu
 
 
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1">
+          <div className={`grid ${canSeePayments ? 'grid-cols-1 md:grid-cols-4' : 'grid-cols-1 md:grid-cols-3'} gap-3`}>
+            <div className={`${canSeePayments ? 'md:col-span-2' : 'md:col-span-1'} space-y-1`}>
               <label className="text-[9px] font-black uppercase text-indigo-500 tracking-[0.2em] ml-1">Title</label>
-              <input required className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-slate-900 text-sm font-semibold outline-none focus:border-indigo-500/50" placeholder="Task title" value={form.title} onChange={e => setForm({...form, title: e.target.value})} />
+              <input required className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-slate-900 dark:text-slate-100 text-sm font-semibold outline-none focus:border-indigo-500/50" placeholder="Task title" value={form.title} onChange={e => setForm({...form, title: e.target.value})} />
             </div>
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase text-indigo-500 tracking-[0.2em] ml-1">Priority</label>
@@ -934,11 +972,51 @@ const CreateModal = ({ onClose, users, refresh, getAuthHeaders, designations, cu
                 <option value="low">🟡 Low</option>
               </select>
             </div>
-            <div className="space-y-1">
-              <label className="text-[9px] font-black uppercase text-indigo-500 tracking-[0.2em] ml-1">Due Date & Time</label>
-              <input type="datetime-local" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-slate-900 dark:text-slate-100 text-xs font-semibold outline-none focus:border-indigo-500/50" value={form.dueDate} onChange={e => setForm({...form, dueDate: e.target.value})} />
-            </div>
+            {!canSeePayments && (
+              <div className="space-y-1">
+                <label className="text-[9px] font-black uppercase text-indigo-500 tracking-[0.2em] ml-1">Due Date & Time</label>
+                <input type="datetime-local" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-slate-900 dark:text-slate-100 text-xs font-semibold outline-none focus:border-indigo-500/50" value={form.dueDate} onChange={e => setForm({...form, dueDate: e.target.value})} />
+              </div>
+            )}
+            {canSeePayments && (
+              <div className="space-y-1">
+                <label className="text-[9px] font-black uppercase text-emerald-600 dark:text-emerald-400 tracking-[0.2em] ml-1">Task Payment (₹)</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600 dark:text-emerald-400 font-bold text-xs">₹</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    placeholder="0.00"
+                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 pl-7 pr-3 py-2 rounded-xl text-slate-900 dark:text-slate-100 text-xs font-bold outline-none focus:border-emerald-500/50"
+                    value={form.payment ?? ''}
+                    onChange={e => setForm({ ...form, payment: e.target.value })}
+                  />
+                </div>
+              </div>
+            )}
           </div>
+
+          {canSeePayments && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[9px] font-black uppercase text-indigo-500 tracking-[0.2em] ml-1">Due Date & Time</label>
+                <input type="datetime-local" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-slate-900 dark:text-slate-100 text-xs font-semibold outline-none focus:border-indigo-500/50" value={form.dueDate} onChange={e => setForm({...form, dueDate: e.target.value})} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] font-black uppercase text-indigo-500 tracking-[0.2em] ml-1">Payment Status</label>
+                <select
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-slate-900 dark:text-slate-100 text-xs font-bold outline-none cursor-pointer"
+                  value={form.paymentStatus || 'unpaid'}
+                  onChange={e => setForm({ ...form, paymentStatus: e.target.value })}
+                >
+                  <option value="unpaid">⏳ Unpaid</option>
+                  <option value="pending">🟡 Payment Pending</option>
+                  <option value="paid">✅ Paid</option>
+                </select>
+              </div>
+            </div>
+          )}
 
           {/* Client & Project Selection Section (Feature 1) */}
           <div className="grid grid-cols-2 gap-3">
@@ -1453,7 +1531,7 @@ const SubtasksSection = ({ task, canManageSubtasks, API_BASE, getAuthHeaders, on
 };
 
 // --- DETAIL MODAL COMPONENT (CLEANED & INTEGRATED) ---
-const DetailModal = ({ task, currentUserId, onClose, onUpdate, getAuthHeaders, DESIGNATIONS, users, API_BASE, onPreviewFile }) => {
+const DetailModal = ({ task, currentUserId, onClose, onUpdate, getAuthHeaders, DESIGNATIONS, users, API_BASE, onPreviewFile, canSeePayments }) => {
   const designations = DESIGNATIONS || [];
   const { showToast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
@@ -1577,7 +1655,15 @@ const DetailModal = ({ task, currentUserId, onClose, onUpdate, getAuthHeaders, D
         rawAssignedTo = [(task.assigned_to && typeof task.assigned_to === 'object') ? (task.assigned_to._id || task.assigned_to.id || String(task.assigned_to)) : String(task.assigned_to)];
       }
 
-      setEditForm({ ...task, assigned_to: rawAssignedTo, status: task.status || "pending", client: rawClient, project: rawProject }); 
+      setEditForm({
+        ...task,
+        assigned_to: rawAssignedTo,
+        status: task.status || "pending",
+        client: rawClient,
+        project: rawProject,
+        payment: task.payment !== undefined ? task.payment : 0,
+        paymentStatus: task.paymentStatus || "unpaid",
+      }); 
       setIsEditing(false); 
       setNewFile(null);
     } 
@@ -1597,6 +1683,12 @@ const DetailModal = ({ task, currentUserId, onClose, onUpdate, getAuthHeaders, D
     fd.append('assigned_to', JSON.stringify(assigneesToSubmit));
     fd.append('designation_id', editForm.designation_id);
     if (editForm.priority) fd.append('priority', editForm.priority);
+    if (canSeePayments && editForm.payment !== undefined && editForm.payment !== '') {
+      fd.append('payment', editForm.payment);
+    }
+    if (canSeePayments && editForm.paymentStatus) {
+      fd.append('paymentStatus', editForm.paymentStatus);
+    }
 
     if (editForm.client) {
       const cid = (editForm.client && typeof editForm.client === 'object') ? (editForm.client._id || editForm.client.id) : editForm.client;
@@ -1889,6 +1981,15 @@ const DetailModal = ({ task, currentUserId, onClose, onUpdate, getAuthHeaders, D
                       </div>
                     );
                   })()}
+
+                  {canSeePayments && task.payment > 0 && (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
+                      <span className="font-black text-xs">₹{Number(task.payment).toLocaleString('en-IN')}</span>
+                      <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-500/20">
+                        {task.paymentStatus || 'unpaid'}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1943,6 +2044,38 @@ const DetailModal = ({ task, currentUserId, onClose, onUpdate, getAuthHeaders, D
                     </select>
                   </div>
                 </div>
+
+                {canSeePayments && (
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="text-[9px] text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-widest mb-1 block ml-1">Task Payment (₹)</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600 dark:text-emerald-400 font-bold text-xs">₹</span>
+                        <input 
+                          type="number"
+                          min="0"
+                          step="any"
+                          placeholder="0.00"
+                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 pl-7 pr-3 py-2 rounded-xl text-slate-900 dark:text-slate-100 text-xs font-bold outline-none focus:border-emerald-500/50" 
+                          value={editForm.payment ?? ''} 
+                          onChange={e => setEditForm({...editForm, payment: e.target.value})} 
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[9px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-widest mb-1 block ml-1">Payment Status</label>
+                      <select
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-3 py-2 rounded-xl text-slate-900 dark:text-slate-100 text-xs font-bold outline-none cursor-pointer"
+                        value={editForm.paymentStatus || 'unpaid'}
+                        onChange={e => setEditForm({ ...editForm, paymentStatus: e.target.value })}
+                      >
+                        <option value="unpaid">⏳ Unpaid</option>
+                        <option value="pending">🟡 Payment Pending</option>
+                        <option value="paid">✅ Paid</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-3">

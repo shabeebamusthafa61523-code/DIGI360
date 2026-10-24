@@ -23,7 +23,8 @@ import {
   deleteTaskComment,
   getTaskComments,
   addTaskAttachments,
-  deleteTaskAttachment
+  deleteTaskAttachment,
+  getEmployeeTaskPaymentsSummary
 } from '../controllers/task.controller.js';
 
 import {
@@ -67,6 +68,13 @@ router.post(
 router.get(
   '/all',
   getAllTasks
+);
+
+// GET EMPLOYEE TASK PAYMENTS SUMMARY
+// GET /api/v1/tasks/employee-payments
+router.get(
+  '/employee-payments',
+  getEmployeeTaskPaymentsSummary
 );
 
 // GET USER TASKS
@@ -197,7 +205,8 @@ router.post(
 router.delete(
   '/:task_id/attachments/:attachment_id',
   validateParams(attachmentParamsSchema),
-  deleteTaskAttachment
+  deleteTaskAttachment,
+  getEmployeeTaskPaymentsSummary
 );
 
 // ============================================================

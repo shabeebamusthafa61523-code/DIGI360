@@ -141,7 +141,17 @@ export const createTaskSchema = z.object({
     .string()
     .optional()
     .or(z.array(z.any()))
-    .optional()
+    .optional(),
+
+  payment: z.preprocess((val) => {
+    if (val === '' || val === null || val === undefined) return 0;
+    const num = Number(Array.isArray(val) ? val[0] : val);
+    return isNaN(num) ? 0 : num;
+  }, z.number().min(0, { message: 'Payment cannot be negative' }).optional()),
+
+  paymentStatus: preprocessSingleString(
+    z.enum(['unpaid', 'pending', 'paid']).optional()
+  )
 })
 .passthrough();
 
@@ -240,6 +250,16 @@ export const updateTaskSchema = z.object({
   priority: preprocessSingleString(
     z.enum(TASK_PRIORITIES)
       .optional()
+  ),
+
+  payment: z.preprocess((val) => {
+    if (val === '' || val === null || val === undefined) return undefined;
+    const num = Number(Array.isArray(val) ? val[0] : val);
+    return isNaN(num) ? 0 : num;
+  }, z.number().min(0, { message: 'Payment cannot be negative' }).optional()),
+
+  paymentStatus: preprocessSingleString(
+    z.enum(['unpaid', 'pending', 'paid']).optional()
   )
 })
 .passthrough();
