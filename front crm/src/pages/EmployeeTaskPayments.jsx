@@ -59,6 +59,59 @@ const formatDateFull = (dateStr) => {
   return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
+const getTaskDate = (t) => {
+  if (!t) return null;
+  const direct = t.createdAt || t.created_at || t.dueDate || t.due_date;
+  if (direct) {
+    const d = new Date(direct);
+    if (!isNaN(d.getTime())) return d.toISOString();
+  }
+  const idStr = String(t.id || t._id || '');
+  if (/^[0-9a-fA-F]{24}$/.test(idStr)) {
+    const d = new Date(parseInt(idStr.substring(0, 8), 16) * 1000);
+    if (!isNaN(d.getTime())) return d.toISOString();
+  }
+  return null;
+};
+
+const getEmployeeLatestDate = (item) => {
+  if (!item) return null;
+  if (item.latestTaskDate) {
+    const d = new Date(item.latestTaskDate);
+    if (!isNaN(d.getTime())) return d.toISOString();
+  }
+  if (Array.isArray(item.tasks) && item.tasks.length > 0) {
+    const times = item.tasks
+      .map(getTaskDate)
+      .filter(Boolean)
+      .map((str) => new Date(str).getTime())
+      .filter((t) => !isNaN(t));
+    if (times.length > 0) {
+      return new Date(Math.max(...times)).toISOString();
+    }
+  }
+  return null;
+};
+
+const getEmployeeOldestDate = (item) => {
+  if (!item) return null;
+  if (item.oldestTaskDate) {
+    const d = new Date(item.oldestTaskDate);
+    if (!isNaN(d.getTime())) return d.toISOString();
+  }
+  if (Array.isArray(item.tasks) && item.tasks.length > 0) {
+    const times = item.tasks
+      .map(getTaskDate)
+      .filter(Boolean)
+      .map((str) => new Date(str).getTime())
+      .filter((t) => !isNaN(t));
+    if (times.length > 0) {
+      return new Date(Math.min(...times)).toISOString();
+    }
+  }
+  return null;
+};
+
 export default function EmployeeTaskPayments() {
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -137,6 +190,61 @@ export default function EmployeeTaskPayments() {
     fetchPayments();
   }, [fetchPayments]);
 
+  // Available months: from backend or derived from loaded employee tasks
+  const displayMonths = useMemo(() => {
+    if (Array.isArray(data.availableMonths) && data.availableMonths.length > 0) {
+      return data.availableMonths;
+    }
+    const map = new Map();
+    (data.employees || []).forEach((emp) => {
+      const empDate = getEmployeeLatestDate(emp);
+      if (empDate) {
+        const d = new Date(empDate);
+        if (!isNaN(d.getTime())) {
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          if (!map.has(key)) {
+            map.set(key, {
+              value: key,
+              label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+              year: d.getFullYear(),
+              month: d.getMonth() + 1,
+            });
+          }
+        }
+      }
+      (emp.tasks || []).forEach((t) => {
+        const dStr = getTaskDate(t);
+        if (dStr) {
+          const d = new Date(dStr);
+          if (!isNaN(d.getTime())) {
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            if (!map.has(key)) {
+              map.set(key, {
+                value: key,
+                label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+                year: d.getFullYear(),
+                month: d.getMonth() + 1,
+              });
+            }
+          }
+        }
+      });
+    });
+
+    if (map.size === 0) {
+      const now = new Date();
+      const key = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      map.set(key, {
+        value: key,
+        label: now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        year: now.getFullYear(),
+        month: now.getMonth() + 1,
+      });
+    }
+
+    return Array.from(map.values()).sort((a, b) => b.value.localeCompare(a.value));
+  }, [data.availableMonths, data.employees]);
+
   // Filter & sort employees
   const filteredEmployees = useMemo(() => {
     let list = [...data.employees];
@@ -160,18 +268,41 @@ export default function EmployeeTaskPayments() {
       list = list.filter((item) => item.pendingTasks > 0);
     }
 
+    // Client-side month filter fallback
+    if (selectedMonth && selectedMonth !== 'all') {
+      list = list.filter((item) => {
+        const hasMatchingTask = (item.tasks || []).some((t) => {
+          const dStr = getTaskDate(t);
+          if (!dStr) return false;
+          const d = new Date(dStr);
+          if (isNaN(d.getTime())) return false;
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          return key === selectedMonth;
+        });
+        if (hasMatchingTask) return true;
+
+        const latest = getEmployeeLatestDate(item);
+        if (!latest) return false;
+        const d = new Date(latest);
+        if (isNaN(d.getTime())) return false;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        return key === selectedMonth;
+      });
+    }
+
     // Sorting
     list.sort((a, b) => {
+      const dateA = new Date(getEmployeeLatestDate(a) || 0).getTime();
+      const dateB = new Date(getEmployeeLatestDate(b) || 0).getTime();
+
       if (sortBy === 'monthDesc') {
-        const dateA = new Date(a.latestTaskDate || 0).getTime();
-        const dateB = new Date(b.latestTaskDate || 0).getTime();
         if (dateB !== dateA) return dateB - dateA;
         return (b.totalPayment || 0) - (a.totalPayment || 0);
       }
       if (sortBy === 'monthAsc') {
-        const dateA = new Date(a.oldestTaskDate || a.latestTaskDate || 0).getTime();
-        const dateB = new Date(b.oldestTaskDate || b.latestTaskDate || 0).getTime();
-        if (dateA !== dateB) return dateA - dateB;
+        const oldA = new Date(getEmployeeOldestDate(a) || dateA || 0).getTime();
+        const oldB = new Date(getEmployeeOldestDate(b) || dateB || 0).getTime();
+        if (oldA !== oldB) return oldA - oldB;
         return (b.totalPayment || 0) - (a.totalPayment || 0);
       }
       if (sortBy === 'paymentDesc') return (b.totalPayment || 0) - (a.totalPayment || 0);
@@ -183,7 +314,7 @@ export default function EmployeeTaskPayments() {
     });
 
     return list;
-  }, [data.employees, searchQuery, selectedStatus, sortBy]);
+  }, [data.employees, searchQuery, selectedStatus, selectedMonth, sortBy]);
 
   // Export to Excel
   const handleExportExcel = () => {
@@ -194,14 +325,15 @@ export default function EmployeeTaskPayments() {
 
     const rows = filteredEmployees.map((item, index) => {
       const emp = item.employee || {};
+      const latestDate = getEmployeeLatestDate(item);
       return {
         '#': index + 1,
         'Employee ID': emp.employeeId || 'N/A',
         'Employee Name': emp.name || 'Unnamed',
         'Email': emp.email || '',
         'Designation': emp.designation || 'Staff',
-        'Latest Task Month': formatMonthYear(item.latestTaskDate),
-        'Latest Task Date': formatDateFull(item.latestTaskDate),
+        'Latest Task Month': formatMonthYear(latestDate),
+        'Latest Task Date': formatDateFull(latestDate),
         'Total Assigned Tasks': item.totalTasks || 0,
         'Completed Tasks': item.completedTasks || 0,
         'Pending Tasks': item.pendingTasks || 0,
@@ -388,7 +520,7 @@ export default function EmployeeTaskPayments() {
               className="w-full pl-9 pr-3 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white outline-none cursor-pointer"
             >
               <option value="all">All Months</option>
-              {(data.availableMonths || []).map((m) => (
+              {displayMonths.map((m) => (
                 <option key={m.value} value={m.value}>
                   {m.label}
                 </option>
@@ -508,15 +640,20 @@ export default function EmployeeTaskPayments() {
 
                       {/* Month / Period */}
                       <td className="py-3.5 px-4 text-center">
-                        <div className="inline-flex flex-col items-center">
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
-                            <Calendar className="w-3 h-3 text-indigo-500" />
-                            {formatMonthYear(item.latestTaskDate)}
-                          </span>
-                          <span className="text-[10px] text-slate-400 mt-0.5">
-                            {item.latestTaskDate ? formatDateFull(item.latestTaskDate) : 'No tasks'}
-                          </span>
-                        </div>
+                        {(() => {
+                          const latestDate = getEmployeeLatestDate(item);
+                          return (
+                            <div className="inline-flex flex-col items-center">
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                                <Calendar className="w-3 h-3 text-indigo-500" />
+                                {formatMonthYear(latestDate)}
+                              </span>
+                              <span className="text-[10px] text-slate-400 mt-0.5">
+                                {latestDate ? formatDateFull(latestDate) : 'No tasks'}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Tasks Progress */}
@@ -682,12 +819,16 @@ export default function EmployeeTaskPayments() {
                             <span className="text-[10px] font-bold uppercase text-slate-400">
                               Priority: {task.priority || 'medium'}
                             </span>
-                            {task.createdAt && (
-                              <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                                <Calendar className="w-3 h-3 text-slate-400" />
-                                {formatDateFull(task.createdAt)}
-                              </span>
-                            )}
+                            {(() => {
+                              const tDate = getTaskDate(task);
+                              if (!tDate) return null;
+                              return (
+                                <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                  <Calendar className="w-3 h-3 text-slate-400" />
+                                  {formatDateFull(tDate)}
+                                </span>
+                              );
+                            })()}
                           </div>
                           <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
                             {task.title}
