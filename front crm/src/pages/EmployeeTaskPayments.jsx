@@ -27,7 +27,8 @@ import {
   Layers,
   ArrowUpDown,
   ExternalLink,
-  ShieldAlert
+  ShieldAlert,
+  Calendar
 } from 'lucide-react';
 import { useToast } from '../components/ToastProvider';
 
@@ -44,16 +45,31 @@ const formatINR = (val) => {
   return '₹' + num.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 };
 
+const formatMonthYear = (dateStr) => {
+  if (!dateStr) return '---';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '---';
+  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+};
+
+const formatDateFull = (dateStr) => {
+  if (!dateStr) return '---';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '---';
+  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
 export default function EmployeeTaskPayments() {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState({ summary: {}, employees: [] });
+  const [data, setData] = useState({ summary: {}, employees: [], availableMonths: [] });
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('all');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
-  const [sortBy, setSortBy] = useState('paymentDesc');
+  const [sortBy, setSortBy] = useState('monthDesc');
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
@@ -84,21 +100,29 @@ export default function EmployeeTaskPayments() {
     }
     setLoading(true);
     try {
-      const url = `${API_BASE}/v1/tasks/employee-payments`;
+      const params = new URLSearchParams();
+      if (selectedMonth && selectedMonth !== 'all') {
+        params.append('month', selectedMonth);
+      }
+      if (sortBy) {
+        params.append('sortBy', sortBy);
+      }
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      const url = `${API_BASE}/v1/tasks/employee-payments${qs}`;
       const res = await fetch(url, { headers: getAuthHeaders() });
       if (!res.ok) {
         // Fallback to /api/tasks/employee-payments
-        const fallbackRes = await fetch(`${API_BASE}/tasks/employee-payments`, { headers: getAuthHeaders() });
+        const fallbackRes = await fetch(`${API_BASE}/tasks/employee-payments${qs}`, { headers: getAuthHeaders() });
         const fallbackData = await fallbackRes.json();
         if (fallbackData.success) {
-          setData(fallbackData.data || { summary: {}, employees: [] });
+          setData(fallbackData.data || { summary: {}, employees: [], availableMonths: [] });
           return;
         }
         throw new Error(fallbackData.message || 'Failed to load employee task payments');
       }
       const json = await res.json();
       if (json.success) {
-        setData(json.data || { summary: {}, employees: [] });
+        setData(json.data || { summary: {}, employees: [], availableMonths: [] });
       } else {
         showToast(json.message || 'Failed to load data', 'error');
       }
@@ -108,7 +132,7 @@ export default function EmployeeTaskPayments() {
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, [isPrivileged, selectedMonth, sortBy, showToast]);
 
   useEffect(() => {
     fetchPayments();
@@ -152,6 +176,18 @@ export default function EmployeeTaskPayments() {
 
     // Sorting
     list.sort((a, b) => {
+      if (sortBy === 'monthDesc') {
+        const dateA = new Date(a.latestTaskDate || 0).getTime();
+        const dateB = new Date(b.latestTaskDate || 0).getTime();
+        if (dateB !== dateA) return dateB - dateA;
+        return (b.totalPayment || 0) - (a.totalPayment || 0);
+      }
+      if (sortBy === 'monthAsc') {
+        const dateA = new Date(a.oldestTaskDate || a.latestTaskDate || 0).getTime();
+        const dateB = new Date(b.oldestTaskDate || b.latestTaskDate || 0).getTime();
+        if (dateA !== dateB) return dateA - dateB;
+        return (b.totalPayment || 0) - (a.totalPayment || 0);
+      }
       if (sortBy === 'paymentDesc') return (b.totalPayment || 0) - (a.totalPayment || 0);
       if (sortBy === 'paymentAsc') return (a.totalPayment || 0) - (b.totalPayment || 0);
       if (sortBy === 'tasksDesc') return (b.totalTasks || 0) - (a.totalTasks || 0);
@@ -179,6 +215,8 @@ export default function EmployeeTaskPayments() {
         'Email': emp.email || '',
         'Department': emp.department || 'General',
         'Designation': emp.designation || 'Staff',
+        'Latest Task Month': formatMonthYear(item.latestTaskDate),
+        'Latest Task Date': formatDateFull(item.latestTaskDate),
         'Total Assigned Tasks': item.totalTasks || 0,
         'Completed Tasks': item.completedTasks || 0,
         'Pending Tasks': item.pendingTasks || 0,
@@ -343,17 +381,34 @@ export default function EmployeeTaskPayments() {
 
       {/* FILTER & SEARCH CONTROLS */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-xs">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* Search Box */}
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search by name, ID, designation..."
+              placeholder="Search name, ID, role..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white outline-none focus:border-emerald-500/50"
             />
+          </div>
+
+          {/* Month Filter */}
+          <div className="relative">
+            <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white outline-none cursor-pointer"
+            >
+              <option value="all">All Months</option>
+              {(data.availableMonths || []).map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Department Filter */}
@@ -392,6 +447,8 @@ export default function EmployeeTaskPayments() {
               onChange={(e) => setSortBy(e.target.value)}
               className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white outline-none cursor-pointer"
             >
+              <option value="monthDesc">Sort: Month (Newest First)</option>
+              <option value="monthAsc">Sort: Month (Oldest First)</option>
               <option value="paymentDesc">Sort: Highest Payout (₹)</option>
               <option value="paymentAsc">Sort: Lowest Payout (₹)</option>
               <option value="tasksDesc">Sort: Most Tasks</option>
@@ -410,6 +467,7 @@ export default function EmployeeTaskPayments() {
               <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500">
                 <th className="py-3.5 px-4">Employee</th>
                 <th className="py-3.5 px-4">Department & Role</th>
+                <th className="py-3.5 px-4 text-center">Month / Period</th>
                 <th className="py-3.5 px-4 text-center">Tasks Progress</th>
                 <th className="py-3.5 px-4 text-right">Completed (₹)</th>
                 <th className="py-3.5 px-4 text-right">Pending (₹)</th>
@@ -420,14 +478,14 @@ export default function EmployeeTaskPayments() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs font-semibold">
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="py-12 text-center text-slate-400">
+                  <td colSpan="8" className="py-12 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-emerald-500" />
                     Loading employee payments summary...
                   </td>
                 </tr>
               ) : filteredEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="py-12 text-center text-slate-400">
+                  <td colSpan="8" className="py-12 text-center text-slate-400">
                     <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-40" />
                     No employees matching the current filters.
                   </td>
@@ -479,6 +537,19 @@ export default function EmployeeTaskPayments() {
                           </span>
                           <span className="block text-[11px] text-slate-500 dark:text-slate-400 font-semibold truncate">
                             {emp.designation || 'Staff'}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Month / Period */}
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="inline-flex flex-col items-center">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                            <Calendar className="w-3 h-3 text-indigo-500" />
+                            {formatMonthYear(item.latestTaskDate)}
+                          </span>
+                          <span className="text-[10px] text-slate-400 mt-0.5">
+                            {item.latestTaskDate ? formatDateFull(item.latestTaskDate) : 'No tasks'}
                           </span>
                         </div>
                       </td>
@@ -645,6 +716,12 @@ export default function EmployeeTaskPayments() {
                             <span className="text-[10px] font-bold uppercase text-slate-400">
                               Priority: {task.priority || 'medium'}
                             </span>
+                            {task.createdAt && (
+                              <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                <Calendar className="w-3 h-3 text-slate-400" />
+                                {formatDateFull(task.createdAt)}
+                              </span>
+                            )}
                           </div>
                           <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
                             {task.title}

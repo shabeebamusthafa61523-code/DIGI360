@@ -137,6 +137,9 @@ const UserPermissionsPage = () => {
         'attendance': '/attendance',
         'task assign': '/todo',
         'todo': '/todo',
+        'task payments': '/employee-task-payments',
+        'employee task payments': '/employee-task-payments',
+        'employee-task-payments': '/employee-task-payments',
       };
 
       const extraAllowedPaths = new Set();
@@ -161,11 +164,32 @@ const UserPermissionsPage = () => {
     return ALL_SIDEBAR_ITEMS;
   }, [loggedInUser, isLoggedInSuperAdmin]);
 
+  const isItemChecked = useCallback((item) => {
+    if (isSuperAdmin) return true;
+    if (selectedPermissions.includes(item.label)) return true;
+    if (item.path === '/employee-task-payments') {
+      return (
+        selectedPermissions.includes('Employee Task Payments') ||
+        selectedPermissions.includes('Task Payments') ||
+        selectedPermissions.includes('employee-task-payments')
+      );
+    }
+    return false;
+  }, [isSuperAdmin, selectedPermissions]);
+
   const togglePermission = (label) => {
     if (isSuperAdmin) return;
-    setSelectedPermissions(prev => 
-      prev.includes(label) ? prev.filter(p => p !== label) : [...prev, label]
-    );
+    setSelectedPermissions(prev => {
+      if (label === 'Employee Task Payments' || label === 'Task Payments') {
+        const hasIt = prev.includes('Employee Task Payments') || prev.includes('Task Payments') || prev.includes('employee-task-payments');
+        if (hasIt) {
+          return prev.filter(p => p !== 'Employee Task Payments' && p !== 'Task Payments' && p !== 'employee-task-payments');
+        } else {
+          return [...prev, 'Employee Task Payments'];
+        }
+      }
+      return prev.includes(label) ? prev.filter(p => p !== label) : [...prev, label];
+    });
   };
 
   const handleSelectAll = () => {
@@ -411,7 +435,7 @@ const UserPermissionsPage = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {categoryItems.map(item => {
-                  const isChecked = isSuperAdmin || selectedPermissions.includes(item.label);
+                  const isChecked = isItemChecked(item);
                   return (
                     <motion.div 
                       key={item.label}
