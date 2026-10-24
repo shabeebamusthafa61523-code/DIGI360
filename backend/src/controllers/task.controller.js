@@ -2602,8 +2602,12 @@ export const getEmployeeTaskPaymentsSummary = async (req, res, next) => {
             ],
           },
         },
-        latestTaskDate: { $max: "$createdAt" },
-        oldestTaskDate: { $min: "$createdAt" },
+        latestTaskDate: {
+          $max: { $ifNull: ["$createdAt", { $ifNull: ["$dueDate", "$updatedAt"] }] },
+        },
+        oldestTaskDate: {
+          $min: { $ifNull: ["$createdAt", { $ifNull: ["$dueDate", "$updatedAt"] }] },
+        },
         tasks: {
           $push: {
             id: "$_id",
@@ -2613,7 +2617,7 @@ export const getEmployeeTaskPaymentsSummary = async (req, res, next) => {
             status: "$status",
             priority: "$priority",
             dueDate: "$dueDate",
-            createdAt: "$createdAt",
+            createdAt: { $ifNull: ["$createdAt", { $ifNull: ["$dueDate", "$updatedAt"] }] },
           },
         },
       },
@@ -2664,12 +2668,18 @@ export const getEmployeeTaskPaymentsSummary = async (req, res, next) => {
     );
 
     const distinctDates = await Task.aggregate([
-      { $match: { "assigned_to.0": { $exists: true }, createdAt: { $exists: true, $ne: null } } },
+      { $match: { "assigned_to.0": { $exists: true } } },
+      {
+        $project: {
+          effectiveDate: { $ifNull: ["$createdAt", { $ifNull: ["$dueDate", "$updatedAt"] }] },
+        },
+      },
+      { $match: { effectiveDate: { $ne: null } } },
       {
         $group: {
           _id: {
-            year: { $year: "$createdAt" },
-            month: { $month: "$createdAt" },
+            year: { $year: "$effectiveDate" },
+            month: { $month: "$effectiveDate" },
           },
         },
       },
