@@ -67,7 +67,6 @@ export default function EmployeeTaskPayments() {
   const [data, setData] = useState({ summary: {}, employees: [], availableMonths: [] });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('all');
-  const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [sortBy, setSortBy] = useState('monthDesc');
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -138,15 +137,6 @@ export default function EmployeeTaskPayments() {
     fetchPayments();
   }, [fetchPayments]);
 
-  // Unique departments for filter
-  const departments = useMemo(() => {
-    const set = new Set();
-    data.employees.forEach((item) => {
-      if (item.employee?.department) set.add(item.employee.department);
-    });
-    return Array.from(set);
-  }, [data.employees]);
-
   // Filter & sort employees
   const filteredEmployees = useMemo(() => {
     let list = [...data.employees];
@@ -162,10 +152,6 @@ export default function EmployeeTaskPayments() {
           emp.designation?.toLowerCase().includes(q)
         );
       });
-    }
-
-    if (selectedDepartment !== 'all') {
-      list = list.filter((item) => item.employee?.department === selectedDepartment);
     }
 
     if (selectedStatus === 'completed') {
@@ -197,7 +183,7 @@ export default function EmployeeTaskPayments() {
     });
 
     return list;
-  }, [data.employees, searchQuery, selectedDepartment, selectedStatus, sortBy]);
+  }, [data.employees, searchQuery, selectedStatus, sortBy]);
 
   // Export to Excel
   const handleExportExcel = () => {
@@ -213,7 +199,6 @@ export default function EmployeeTaskPayments() {
         'Employee ID': emp.employeeId || 'N/A',
         'Employee Name': emp.name || 'Unnamed',
         'Email': emp.email || '',
-        'Department': emp.department || 'General',
         'Designation': emp.designation || 'Staff',
         'Latest Task Month': formatMonthYear(item.latestTaskDate),
         'Latest Task Date': formatDateFull(item.latestTaskDate),
@@ -381,7 +366,7 @@ export default function EmployeeTaskPayments() {
 
       {/* FILTER & SEARCH CONTROLS */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-xs">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {/* Search Box */}
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -406,22 +391,6 @@ export default function EmployeeTaskPayments() {
               {(data.availableMonths || []).map((m) => (
                 <option key={m.value} value={m.value}>
                   {m.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Department Filter */}
-          <div className="relative">
-            <select
-              value={selectedDepartment}
-              onChange={(e) => setSelectedDepartment(e.target.value)}
-              className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white outline-none cursor-pointer"
-            >
-              <option value="all">All Departments</option>
-              {departments.map((dept) => (
-                <option key={dept} value={dept}>
-                  {dept}
                 </option>
               ))}
             </select>
@@ -466,7 +435,7 @@ export default function EmployeeTaskPayments() {
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500">
                 <th className="py-3.5 px-4">Employee</th>
-                <th className="py-3.5 px-4">Department & Role</th>
+                <th className="py-3.5 px-4">Designation</th>
                 <th className="py-3.5 px-4 text-center">Month / Period</th>
                 <th className="py-3.5 px-4 text-center">Tasks Progress</th>
                 <th className="py-3.5 px-4 text-right">Completed (₹)</th>
@@ -511,6 +480,7 @@ export default function EmployeeTaskPayments() {
                                 src={emp.avatar || emp.profile_image}
                                 alt={emp.name}
                                 className="w-full h-full object-cover"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
                               />
                             ) : (
                               (emp.name || 'U').charAt(0).toUpperCase()
@@ -529,16 +499,11 @@ export default function EmployeeTaskPayments() {
                         </div>
                       </td>
 
-                      {/* Department & Designation */}
+                      {/* Designation */}
                       <td className="py-3.5 px-4">
-                        <div className="space-y-1">
-                          <span className="inline-block text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-800/60">
-                            {emp.department || 'General'}
-                          </span>
-                          <span className="block text-[11px] text-slate-500 dark:text-slate-400 font-semibold truncate">
-                            {emp.designation || 'Staff'}
-                          </span>
-                        </div>
+                        <span className="inline-block text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate">
+                          {emp.designation || emp.role || 'Staff'}
+                        </span>
                       </td>
 
                       {/* Month / Period */}
@@ -641,6 +606,7 @@ export default function EmployeeTaskPayments() {
                         src={selectedEmployee.employee.avatar || selectedEmployee.employee.profile_image}
                         alt={selectedEmployee.employee.name}
                         className="w-full h-full object-cover"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
                       />
                     ) : (
                       (selectedEmployee.employee?.name || 'U').charAt(0).toUpperCase()
@@ -651,7 +617,7 @@ export default function EmployeeTaskPayments() {
                       {selectedEmployee.employee?.name}
                     </h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {selectedEmployee.employee?.designation} • {selectedEmployee.employee?.department}
+                      {selectedEmployee.employee?.designation || selectedEmployee.employee?.role || 'Staff'}
                     </p>
                   </div>
                 </div>
