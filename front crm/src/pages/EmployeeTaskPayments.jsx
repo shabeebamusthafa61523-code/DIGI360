@@ -191,13 +191,22 @@ export default function EmployeeTaskPayments() {
     fetchPayments();
   }, [fetchPayments]);
 
-  // Lock background viewport scrolling when task detail modal is open
+  // Lock background viewport scrolling & listen for Escape key when task detail modal is open
   useEffect(() => {
     if (isDetailOpen) {
       const originalOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
+
+      const handleKeyDown = (e) => {
+        if (e.key === 'Escape') {
+          setIsDetailOpen(false);
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+
       return () => {
         document.body.style.overflow = originalOverflow;
+        window.removeEventListener('keydown', handleKeyDown);
       };
     }
   }, [isDetailOpen]);
@@ -730,180 +739,171 @@ export default function EmployeeTaskPayments() {
       </div>
 
       {/* TASK BREAKDOWN MODAL IN VIEWPORT */}
-      <AnimatePresence>
-        {isDetailOpen && selectedEmployee && typeof document !== 'undefined' && createPortal(
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[99999] bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-hidden"
-            onClick={() => setIsDetailOpen(false)}
+      {isDetailOpen && selectedEmployee && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[99999] bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-hidden animate-in fade-in duration-200"
+          onClick={() => setIsDetailOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-3xl w-full h-[88vh] max-h-[88vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-200"
           >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 15 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 15 }}
-              transition={{ duration: 0.2 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-3xl w-full h-[88vh] max-h-[88vh] flex flex-col shadow-2xl overflow-hidden my-auto"
-            >
-              {/* Modal Header (Fixed in Viewport) */}
-              <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between shrink-0 bg-slate-50/60 dark:bg-slate-950/40">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-black text-lg overflow-hidden shrink-0">
-                    {selectedEmployee.employee?.avatar || selectedEmployee.employee?.profile_image ? (
-                      <img
-                        src={selectedEmployee.employee.avatar || selectedEmployee.employee.profile_image}
-                        alt={selectedEmployee.employee.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                      />
-                    ) : (
-                      (selectedEmployee.employee?.name || 'U').charAt(0).toUpperCase()
+            {/* Modal Header (Fixed in Viewport) */}
+            <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between shrink-0 bg-slate-50/60 dark:bg-slate-950/40">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-black text-lg overflow-hidden shrink-0">
+                  {selectedEmployee.employee?.avatar || selectedEmployee.employee?.profile_image ? (
+                    <img
+                      src={selectedEmployee.employee.avatar || selectedEmployee.employee.profile_image}
+                      alt={selectedEmployee.employee.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  ) : (
+                    (selectedEmployee.employee?.name || 'U').charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white truncate">
+                    {selectedEmployee.employee?.name}
+                  </h3>
+                  <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                    <span>{selectedEmployee.employee?.designation || selectedEmployee.employee?.role || 'Staff'}</span>
+                    {selectedEmployee.employee?.employeeId && (
+                      <>
+                        <span>•</span>
+                        <span className="font-mono text-[11px] font-semibold">{selectedEmployee.employee.employeeId}</span>
+                      </>
                     )}
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white truncate">
-                      {selectedEmployee.employee?.name}
-                    </h3>
-                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                      <span>{selectedEmployee.employee?.designation || selectedEmployee.employee?.role || 'Staff'}</span>
-                      {selectedEmployee.employee?.employeeId && (
-                        <>
-                          <span>•</span>
-                          <span className="font-mono text-[11px] font-semibold">{selectedEmployee.employee.employeeId}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setIsDetailOpen(false)}
-                  className="p-2 rounded-full hover:bg-slate-200/60 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer shrink-0 ml-2"
-                  title="Close"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Employee Summary Mini Cards (Shrink-0) */}
-              <div className="p-4 sm:p-6 pb-2 shrink-0">
-                <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
-                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-center">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Tasks</span>
-                    <p className="text-base sm:text-lg font-black text-slate-900 dark:text-white mt-0.5">
-                      {selectedEmployee.totalTasks}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/40 text-center">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Completed Payout</span>
-                    <p className="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
-                      {formatINR(selectedEmployee.completedPayment)}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/50 dark:border-indigo-800/40 text-center">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Total Payout</span>
-                    <p className="text-base sm:text-lg font-black text-indigo-600 dark:text-indigo-400 mt-0.5">
-                      {formatINR(selectedEmployee.totalPayment)}
-                    </p>
-                  </div>
                 </div>
               </div>
 
-              {/* Task List (Flex-1, min-h-0, scrollable strictly within viewport) */}
-              <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-2 space-y-2.5">
-                <div className="flex items-center justify-between pb-1">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                    Assigned Task Breakdown ({selectedEmployee.tasks?.length || 0})
-                  </h4>
-                  <span className="text-[11px] font-bold text-slate-400">
-                    Scroll to see all
-                  </span>
+              <button
+                onClick={() => setIsDetailOpen(false)}
+                className="p-2 rounded-full hover:bg-slate-200/60 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer shrink-0 ml-2"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Employee Summary Mini Cards (Shrink-0) */}
+            <div className="p-4 sm:p-6 pb-2 shrink-0">
+              <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-center">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Tasks</span>
+                  <p className="text-base sm:text-lg font-black text-slate-900 dark:text-white mt-0.5">
+                    {selectedEmployee.totalTasks || 0}
+                  </p>
                 </div>
+                <div className="p-3 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/40 text-center">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Completed Payout</span>
+                  <p className="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                    {formatINR(selectedEmployee.completedPayment)}
+                  </p>
+                </div>
+                <div className="p-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/50 dark:border-indigo-800/40 text-center">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Total Payout</span>
+                  <p className="text-base sm:text-lg font-black text-indigo-600 dark:text-indigo-400 mt-0.5">
+                    {formatINR(selectedEmployee.totalPayment)}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-                {(!selectedEmployee.tasks || selectedEmployee.tasks.length === 0) ? (
-                  <div className="py-12 text-center text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
-                    <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                    <p className="text-xs font-semibold">No tasks assigned to this employee.</p>
-                  </div>
-                ) : (
-                  selectedEmployee.tasks.map((task) => {
-                    const isDone = ['completed', 'done'].includes(task.status);
-                    return (
-                      <div
-                        key={task.id}
-                        className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 hover:border-emerald-500/40 transition"
-                      >
-                        <div className="space-y-1 min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span
-                              className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border ${
-                                isDone
-                                  ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
-                                  : 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800'
-                              }`}
-                            >
-                              {task.status}
-                            </span>
-                            <span className="text-[10px] font-bold uppercase text-slate-400">
-                              Priority: {task.priority || 'medium'}
-                            </span>
-                            {(() => {
-                              const tDate = getTaskDate(task);
-                              if (!tDate) return null;
-                              return (
-                                <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                                  <Calendar className="w-3 h-3 text-slate-400" />
-                                  {formatDateFull(tDate)}
-                                </span>
-                              );
-                            })()}
-                          </div>
-                          <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
-                            {task.title}
-                          </p>
-                        </div>
+            {/* Task List (Flex-1, min-h-0, scrollable strictly within viewport) */}
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-2 space-y-2.5">
+              <div className="flex items-center justify-between pb-1">
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  Assigned Task Breakdown ({selectedEmployee.tasks?.length || 0})
+                </h4>
+                <span className="text-[11px] font-bold text-slate-400">
+                  Scroll to see all
+                </span>
+              </div>
 
-                        {/* Task Payment Amount */}
-                        <div className="text-right shrink-0">
-                          <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 block">
-                            {formatINR(task.payment)}
+              {(!selectedEmployee.tasks || selectedEmployee.tasks.length === 0) ? (
+                <div className="py-12 text-center text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+                  <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                  <p className="text-xs font-semibold">No tasks assigned to this employee.</p>
+                </div>
+              ) : (
+                selectedEmployee.tasks.map((task, idx) => {
+                  const isDone = ['completed', 'done'].includes(task.status);
+                  return (
+                    <div
+                      key={task.id || task._id || idx}
+                      className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 hover:border-emerald-500/40 transition"
+                    >
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border ${
+                              isDone
+                                ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                                : 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800'
+                            }`}
+                          >
+                            {task.status}
                           </span>
-                          <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">
-                            Status: {task.paymentStatus || 'unpaid'}
+                          <span className="text-[10px] font-bold uppercase text-slate-400">
+                            Priority: {task.priority || 'medium'}
                           </span>
+                          {(() => {
+                            const tDate = getTaskDate(task);
+                            if (!tDate) return null;
+                            return (
+                              <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                <Calendar className="w-3 h-3 text-slate-400" />
+                                {formatDateFull(tDate)}
+                              </span>
+                            );
+                          })()}
                         </div>
+                        <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
+                          {task.title}
+                        </p>
                       </div>
-                    );
-                  })
-                )}
-              </div>
 
-              {/* Modal Footer (Fixed in Viewport) */}
-              <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0 bg-slate-50/60 dark:bg-slate-950/40">
-                <button
-                  onClick={() => {
-                    setIsDetailOpen(false);
-                    navigate('/todo');
-                  }}
-                  className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>Go to Task Assign (Todo)</span>
-                </button>
-                <button
-                  onClick={() => setIsDetailOpen(false)}
-                  className="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
-                >
-                  Close
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>,
-          document.body
-        )}
-      </AnimatePresence>
+                      {/* Task Payment Amount */}
+                      <div className="text-right shrink-0">
+                        <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 block">
+                          {formatINR(task.payment)}
+                        </span>
+                        <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">
+                          Status: {task.paymentStatus || 'unpaid'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Modal Footer (Fixed in Viewport) */}
+            <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0 bg-slate-50/60 dark:bg-slate-950/40">
+              <button
+                onClick={() => {
+                  setIsDetailOpen(false);
+                  navigate('/todo');
+                }}
+                className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Go to Task Assign (Todo)</span>
+              </button>
+              <button
+                onClick={() => setIsDetailOpen(false)}
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
