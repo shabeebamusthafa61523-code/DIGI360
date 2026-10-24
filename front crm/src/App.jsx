@@ -12,6 +12,7 @@ import Register from './pages/Register';
 import Attendance from './pages/Attendance';
 import StaffAttendance from './pages/StaffAttendance';
 import Todo from './pages/Todo';
+import EmployeeTaskPayments from './pages/EmployeeTaskPayments';
 import Users from './pages/Users';
 import UserDetailPage from './pages/UserDetailPage';
 import Leads from './pages/Leads';
@@ -197,6 +198,8 @@ function App() {
         <Route path="/attendance-logs" element={<ProtectedRoute><MainLayout><StaffAttendance /></MainLayout></ProtectedRoute>} />
         <Route path="/attendance/staff" element={<ProtectedRoute><MainLayout><StaffAttendance /></MainLayout></ProtectedRoute>} />
         <Route path="/todo" element={<ProtectedRoute><MainLayout><RestrictedRoute><Todo /></RestrictedRoute></MainLayout></ProtectedRoute>} />
+        <Route path="/employee-task-payments" element={<ProtectedRoute><MainLayout><RestrictedRoute><EmployeeTaskPayments /></RestrictedRoute></MainLayout></ProtectedRoute>} />
+        <Route path="/task-payments" element={<ProtectedRoute><MainLayout><RestrictedRoute><EmployeeTaskPayments /></RestrictedRoute></MainLayout></ProtectedRoute>} />
         <Route path="/users" element={<ProtectedRoute><MainLayout><RestrictedRoute><Users /></RestrictedRoute></MainLayout></ProtectedRoute>} />
         <Route path="/users/:userId" element={<ProtectedRoute><MainLayout><RestrictedRoute><UserDetailPage /></RestrictedRoute></MainLayout></ProtectedRoute>} />
         <Route path="/sidebar-permissions" element={<ProtectedRoute><MainLayout><RestrictedRoute><SidebarPermissionsPage /></RestrictedRoute></MainLayout></ProtectedRoute>} />
