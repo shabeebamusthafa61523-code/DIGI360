@@ -2429,10 +2429,31 @@ export const getEmployeeTaskPaymentsSummary = async (req, res, next) => {
       throw new AppError("Access denied: Task payments are restricted to managers and administrators", 403);
     }
 
-    const { department, status, search, startDate, endDate } = req.query;
+    const { department, status, search, startDate, endDate, month, sortBy } = req.query;
 
     const matchStage = {};
-    if (startDate || endDate) {
+    if (month && month !== "all") {
+      let startOfMonth, endOfMonth;
+      if (/^\d{4}-\d{2}$/.test(month)) {
+        const [yStr, mStr] = month.split("-");
+        const y = parseInt(yStr, 10);
+        const m = parseInt(mStr, 10) - 1;
+        startOfMonth = new Date(y, m, 1);
+        endOfMonth = new Date(y, m + 1, 0, 23, 59, 59, 999);
+      } else {
+        const d = new Date(month);
+        if (!isNaN(d.getTime())) {
+          startOfMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+          endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+        }
+      }
+      if (startOfMonth && endOfMonth) {
+        matchStage.createdAt = {
+          $gte: startOfMonth,
+          $lte: endOfMonth,
+        };
+      }
+    } else if (startDate || endDate) {
       matchStage.createdAt = {};
       if (startDate) {
         const s = new Date(startDate);
@@ -2581,6 +2602,8 @@ export const getEmployeeTaskPaymentsSummary = async (req, res, next) => {
             ],
           },
         },
+        latestTaskDate: { $max: "$createdAt" },
+        oldestTaskDate: { $min: "$createdAt" },
         tasks: {
           $push: {
             id: "$_id",
@@ -2596,8 +2619,21 @@ export const getEmployeeTaskPaymentsSummary = async (req, res, next) => {
       },
     });
 
+    let sortStage = { totalPayment: -1, totalTasks: -1 };
+    if (sortBy === "monthDesc") {
+      sortStage = { latestTaskDate: -1, totalPayment: -1 };
+    } else if (sortBy === "monthAsc") {
+      sortStage = { oldestTaskDate: 1, totalPayment: -1 };
+    } else if (sortBy === "paymentAsc") {
+      sortStage = { totalPayment: 1, totalTasks: -1 };
+    } else if (sortBy === "tasksDesc") {
+      sortStage = { totalTasks: -1, totalPayment: -1 };
+    } else if (sortBy === "tasksAsc") {
+      sortStage = { totalTasks: 1, totalPayment: -1 };
+    }
+
     pipeline.push({
-      $sort: { totalPayment: -1, totalTasks: -1 },
+      $sort: sortStage,
     });
 
     const employeesSummary = await Task.aggregate(pipeline);
@@ -2627,11 +2663,34 @@ export const getEmployeeTaskPaymentsSummary = async (req, res, next) => {
       },
     );
 
+    const distinctDates = await Task.aggregate([
+      { $match: { "assigned_to.0": { $exists: true }, createdAt: { $exists: true, $ne: null } } },
+      {
+        $group: {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" },
+          },
+        },
+      },
+      {
+        $sort: { "_id.year": -1, "_id.month": -1 },
+      },
+    ]);
+    const availableMonths = (distinctDates || []).map((item) => {
+      const y = item._id.year;
+      const m = String(item._id.month).padStart(2, "0");
+      const d = new Date(y, item._id.month - 1, 1);
+      const label = d.toLocaleString("default", { month: "long", year: "numeric" });
+      return { value: `${y}-${m}`, label, year: y, month: item._id.month };
+    });
+
     return res.status(200).json({
       success: true,
       data: {
         summary: grandTotals,
         employees: employeesSummary,
+        availableMonths,
       },
     });
   } catch (error) {

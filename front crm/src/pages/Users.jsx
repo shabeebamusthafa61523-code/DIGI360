@@ -99,6 +99,17 @@ const PermissionModal = ({ isOpen, onClose, user, onSave, showToast, getAuthHead
         'capital': '/accounts/capital',
         'purchase': '/accounts/purchase',
         'create invoice': '/accounts/create-invoice',
+        'daily operations os': '/daily-operations',
+        'daily operations': '/daily-operations',
+        'tl daily operations': '/tl-daily-operations',
+        'staff attendance': '/staff-attendance',
+        'attendance logs': '/staff-attendance',
+        'attendance': '/attendance',
+        'task assign': '/todo',
+        'todo': '/todo',
+        'task payments': '/employee-task-payments',
+        'employee task payments': '/employee-task-payments',
+        'employee-task-payments': '/employee-task-payments',
       };
 
       const extraAllowedPaths = new Set();
@@ -130,12 +141,31 @@ const PermissionModal = ({ isOpen, onClose, user, onSave, showToast, getAuthHead
     }
   }, [user]);
 
-  if (!isOpen || !user) return null;
+  const isItemChecked = useCallback((item) => {
+    if (isSuperAdmin) return true;
+    if (selectedPermissions.includes(item.label)) return true;
+    if (item.path === '/employee-task-payments') {
+      return (
+        selectedPermissions.includes('Employee Task Payments') ||
+        selectedPermissions.includes('Task Payments') ||
+        selectedPermissions.includes('employee-task-payments')
+      );
+    }
+    return false;
+  }, [isSuperAdmin, selectedPermissions]);
 
   const togglePermission = (label) => {
-    setSelectedPermissions(prev =>
-      prev.includes(label) ? prev.filter(p => p !== label) : [...prev, label]
-    );
+    setSelectedPermissions(prev => {
+      if (label === 'Employee Task Payments' || label === 'Task Payments') {
+        const hasIt = prev.includes('Employee Task Payments') || prev.includes('Task Payments') || prev.includes('employee-task-payments');
+        if (hasIt) {
+          return prev.filter(p => p !== 'Employee Task Payments' && p !== 'Task Payments' && p !== 'employee-task-payments');
+        } else {
+          return [...prev, 'Employee Task Payments'];
+        }
+      }
+      return prev.includes(label) ? prev.filter(p => p !== label) : [...prev, label];
+    });
   };
 
   const handleSelectAll = () => {
@@ -293,7 +323,7 @@ const PermissionModal = ({ isOpen, onClose, user, onSave, showToast, getAuthHead
                 <h4 className="text-[11px] font-black uppercase tracking-wider text-indigo-500 dark:text-indigo-400">{cat}</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {catItems.map(item => {
-                    const isChecked = isSuperAdmin || selectedPermissions.includes(item.label);
+                    const isChecked = isItemChecked(item);
                     return (
                       <label
                         key={item.label}

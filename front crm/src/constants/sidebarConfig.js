@@ -67,5 +67,5 @@ export const ALL_SIDEBAR_ITEMS = [
   { label: 'TL Daily Operations', path: '/tl-daily-operations', category: 'Daily Operations', desc: 'Team Lead department routine checklist & EOD closures' },
   { label: 'Attendance', path: '/attendance', category: 'Daily Operations', desc: 'Personal daily attendance clock-in/out logs' },
   { label: 'Task Assign', path: '/todo', category: 'Daily Operations', desc: 'Task assignment & to-do list tracker' },
-  { label: 'Task Payments', path: '/employee-task-payments', category: 'Daily Operations', desc: 'Employee task compensation & payout summary' },
+  { label: 'Employee Task Payments', path: '/employee-task-payments', category: 'Daily Operations', desc: 'Employee task compensation & payout summary' },
 ];
