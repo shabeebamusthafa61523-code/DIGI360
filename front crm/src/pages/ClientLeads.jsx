@@ -278,9 +278,12 @@ export default function ClientLeads() {
     if (!currentUser) return false;
     const roleId = String(currentUser.role_id || currentUser.roleId || currentUser.role || '').toLowerCase().trim();
     const designation = String(currentUser.designation || currentUser.designationId?.name || currentUser.designation_id || '').toLowerCase().trim();
-    const isOps = designation.includes('operation') || designation.includes('ops');
-    return (['1', '2', 'admin', 'superadmin'].includes(roleId) || designation.includes('admin')) && !isOps;
-  }, [currentUser]);
+    const deptName = userDeptName;
+    const isOps = designation.includes('operation') || designation.includes('ops') || deptName.includes('operation') || deptName.includes('ops');
+    const isAdminUser = (['1', '2', 'admin', 'superadmin'].includes(roleId) || designation.includes('admin') || deptName.includes('admin')) && !isOps;
+    const isHrUser = ['1', 'hr'].includes(roleId) || designation.includes('hr') || deptName.includes('hr');
+    return isAdminUser || isHrUser;
+  }, [currentUser, userDeptName]);
 
   const isMarketing = useMemo(() => {
     if (!currentUser) return false;
@@ -323,16 +326,15 @@ export default function ClientLeads() {
   }, [currentUser, userDeptName, isAcademicCounselor]);
 
   const canEditLead = useMemo(() => {
-    if (isAdmin) return false;
     if (isMarketing) return false;
     return true;
-  }, [isAdmin, isMarketing]);
+  }, [isMarketing]);
 
   const canEditAssignedTo = useMemo(() => {
-    if (isAdmin) return false;
+    if (!currentUser) return false;
     if (isAcademicCounselor) return false;
-    return isOperationManager;
-  }, [isAdmin, isAcademicCounselor, isOperationManager]);
+    return isOperationManager || isAdmin;
+  }, [currentUser, isAcademicCounselor, isOperationManager, isAdmin]);
 
   const canDeleteLead = useMemo(() => {
     if (!currentUser) return true;
@@ -1659,310 +1661,60 @@ export default function ClientLeads() {
       {/* CREATE LEAD MODAL */}
       {isCreateOpen && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-3xl w-full p-6 shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900 z-10">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-lg w-full p-6 shadow-2xl my-8">
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100 dark:border-slate-800">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Plus size={18} className="text-indigo-600" /> Add New Client Lead
               </h3>
-              <button onClick={() => setIsCreateOpen(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setIsCreateOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleCreateLead} className="space-y-6">
-              {/* Section 1: Basic Information */}
+            <form onSubmit={handleCreateLead} className="space-y-4">
               <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-3 flex items-center gap-1.5">
-                  <User size={14} /> Basic Contact Information
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Lead Name *</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.leadName}
-                      onChange={e => setFormData({ ...formData, leadName: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                      placeholder="Full Name"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Company Name</label>
-                    <input
-                      type="text"
-                      value={formData.companyName}
-                      onChange={e => setFormData({ ...formData, companyName: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                      placeholder="Company / Organization"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Phone *</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.phone}
-                      onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                      placeholder="Contact Number"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Email</label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={e => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                      placeholder="Email Address"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">City / Place</label>
-                    <input
-                      type="text"
-                      value={formData.city}
-                      onChange={e => setFormData({ ...formData, city: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                      placeholder="City Location"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 2: Marketing & Source Tracking */}
-              <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-3 flex items-center gap-1.5">
-                  <Tag size={14} /> Lead Source & Campaign
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Source</label>
-                    <select
-                      value={formData.source}
-                      onChange={e => setFormData({ ...formData, source: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    >
-                      <option value="">Select Source</option>
-                      <option value="REFERENCE">REFERENCE</option>
-                      <option value="INBOUND CALLS">INBOUND CALLS</option>
-                      <option value="INBOUND MSG">INBOUND MSG</option>
-                      <option value="MARKETING">MARKETING</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Campaign Name</label>
-                    <input
-                      type="text"
-                      value={formData.campaignName}
-                      onChange={e => setFormData({ ...formData, campaignName: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                      placeholder="e.g. Summer Outreach 2026"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Lead Platform</label>
-                    <input
-                      type="text"
-                      value={formData.leadPlatform}
-                      onChange={e => setFormData({ ...formData, leadPlatform: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                      placeholder="e.g. Facebook Ads / Website"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 3: Status, Priority & Pipeline */}
-              <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-3 flex items-center gap-1.5">
-                  <TrendingUp size={14} /> Status, Priority & Pipeline
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Status</label>
-                    <select
-                      value={formData.status}
-                      onChange={e => setFormData({ ...formData, status: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    >
-                      <option value="New">New</option>
-                      <option value="Contacted">Contacted</option>
-                      <option value="Follow Up">Follow Up</option>
-                      <option value="Interested">Interested</option>
-                      <option value="Converted">Converted</option>
-                      <option value="Lost">Lost</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Priority</label>
-                    <select
-                      value={formData.priority}
-                      onChange={e => setFormData({ ...formData, priority: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    >
-                      <option value="Low">Low</option>
-                      <option value="Medium">Medium</option>
-                      <option value="High">High</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Interest Level</label>
-                    <select
-                      value={formData.interestedService}
-                      onChange={e => setFormData({ ...formData, interestedService: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    >
-                      <option value="">Select Interest</option>
-                      <option value="HOT LEAD">HOT LEAD</option>
-                      <option value="WARM LEAD">WARM LEAD</option>
-                      <option value="COLD LEAD">COLD LEAD</option>
-                      <option value="RNT">RNT</option>
-                      <option value="SWITCHED OFF">SWITCHED OFF</option>
-                      <option value="WRONG LEAD">WRONG LEAD</option>
-                      <option value="CALL BACK">CALL BACK</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Client Meeting Fixed</label>
-                    <select
-                      value={formData.clientMeetingFixed}
-                      onChange={e => setFormData({ ...formData, clientMeetingFixed: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    >
-                      <option value="Pending">Pending</option>
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Client Onboarding</label>
-                    <select
-                      value={formData.clientOnboarding}
-                      onChange={e => setFormData({ ...formData, clientOnboarding: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    >
-                      <option value="Pending">Pending</option>
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
-                  </div>
-                  {canEditAssignedTo && (
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Assigned Staff / Counselor</label>
-                      <select
-                        value={formData.assignedTo}
-                        onChange={e => setFormData({ ...formData, assignedTo: e.target.value })}
-                        className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                      >
-                        <option value="">Unassigned</option>
-                        {salesGrowthStaff.map(s => (
-                          <option key={s.id || s._id} value={s.id || s._id}>{s.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                </div>
-                {formData.status === 'Lost' && (
-                  <div className="mt-3">
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-rose-500 mb-1">Lost Reason</label>
-                    <input
-                      type="text"
-                      value={formData.lostReason}
-                      onChange={e => setFormData({ ...formData, lostReason: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500/20"
-                      placeholder="Why was this lead lost?"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Section 4: Follow-up & Key Dates */}
-              <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-3 flex items-center gap-1.5">
-                  <Calendar size={14} /> Follow-up & Key Dates
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Lead Received Date</label>
-                    <input
-                      type="date"
-                      value={formData.leadsReceivedDate}
-                      onChange={e => setFormData({ ...formData, leadsReceivedDate: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Next Follow-Up Date</label>
-                    <input
-                      type="date"
-                      value={formData.nextFollowUpDate}
-                      onChange={e => setFormData({ ...formData, nextFollowUpDate: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">1st Follow-Up Date</label>
-                    <input
-                      type="date"
-                      value={formData.followUpDate1}
-                      onChange={e => setFormData({ ...formData, followUpDate1: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">2nd Follow-Up Date</label>
-                    <input
-                      type="date"
-                      value={formData.followUpDate2}
-                      onChange={e => setFormData({ ...formData, followUpDate2: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">3rd Follow-Up Date</label>
-                    <input
-                      type="date"
-                      value={formData.followUpDate3}
-                      onChange={e => setFormData({ ...formData, followUpDate3: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">4th Follow-Up Date</label>
-                    <input
-                      type="date"
-                      value={formData.followUpDate4}
-                      onChange={e => setFormData({ ...formData, followUpDate4: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">5th Follow-Up Date</label>
-                    <input
-                      type="date"
-                      value={formData.followUpDate5}
-                      onChange={e => setFormData({ ...formData, followUpDate5: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 5: Remarks */}
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Remarks</label>
-                <textarea
-                  rows={2}
-                  value={formData.remarks}
-                  onChange={e => setFormData({ ...formData, remarks: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  placeholder="Additional notes or meeting summary..."
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.leadName}
+                  onChange={e => setFormData({ ...formData, leadName: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  placeholder="Enter lead name"
+                  autoFocus
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100 dark:border-slate-800 sticky bottom-0 bg-white dark:bg-slate-900">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  Number <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.phone}
+                  onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  placeholder="Enter phone number"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  Remarks
+                </label>
+                <textarea
+                  rows={3}
+                  value={formData.remarks}
+                  onChange={e => setFormData({ ...formData, remarks: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500/20 resize-none"
+                  placeholder="Enter remarks..."
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsCreateOpen(false)}

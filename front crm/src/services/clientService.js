@@ -96,3 +96,24 @@ export const deleteClientFollowup = async (clientId, followupId) => {
   const response = await axios.delete(`${getBaseUrl()}/${clientId}/followups/${followupId}`, getAuthHeaders());
   return response.data;
 };
+
+// Client Proposals API
+export const getClientProposals = async (clientId) => {
+  const response = await axios.get(`${getBaseUrl()}/${clientId}/proposals`, getAuthHeaders());
+  return response.data;
+};
+
+export const createClientProposal = async (clientId, proposalData) => {
+  const response = await axios.post(`${getBaseUrl()}/${clientId}/proposals`, proposalData, getAuthHeaders());
+  return response.data;
+};
+
+export const updateClientProposal = async (clientId, proposalId, proposalData) => {
+  const response = await axios.put(`${getBaseUrl()}/${clientId}/proposals/${proposalId}`, proposalData, getAuthHeaders());
+  return response.data;
+};
+
+export const deleteClientProposal = async (clientId, proposalId) => {
+  const response = await axios.delete(`${getBaseUrl()}/${clientId}/proposals/${proposalId}`, getAuthHeaders());
+  return response.data;
+};

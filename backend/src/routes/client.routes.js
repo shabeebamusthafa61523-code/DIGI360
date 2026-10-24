@@ -48,4 +48,10 @@ router.post('/:id/followups', clientController.createClientFollowup);
 router.put('/:id/followups/:followupId', clientController.updateClientFollowup);
 router.delete('/:id/followups/:followupId', clientController.deleteClientFollowup);
 
+// Client Proposals Endpoints
+router.get('/:id/proposals', clientController.getClientProposals);
+router.post('/:id/proposals', clientController.createClientProposal);
+router.put('/:id/proposals/:proposalId', clientController.updateClientProposal);
+router.delete('/:id/proposals/:proposalId', clientController.deleteClientProposal);
+
 export default router;

@@ -155,6 +155,14 @@ const menuItems = [
   { icon: UsersRound, label: 'TL Daily Operations', path: '/tl-daily-operations', category: 'Daily Operations', allowedRoles: ['1', '2', '10', 'hr', 'admin', 'superadmin', 'manager', 'team_lead', 'teamlead', 'tl'], allowedDesignationNames: ['team lead', 'teamlead', 'tl', 'lead', 'manager', 'supervisor', 'hod'] },
   { icon: Clock, label: 'Attendance', path: '/attendance', category: 'Daily Operations' },
   { icon: ListCheck, label: 'Task Assign', path: '/todo', category: 'Daily Operations' },
+  { 
+    icon: Coins, 
+    label: 'Task Payments', 
+    path: '/employee-task-payments', 
+    category: 'Daily Operations', 
+    allowedRoles: ['0', '1', '2', 'hr', 'admin', 'superadmin', 'manager', 'team_lead', 'teamlead', 'tl', 'md'], 
+    allowedDesignationNames: ['team lead', 'teamlead', 'tl', 'lead', 'manager', 'supervisor', 'hod', 'director', 'admin', 'hr', 'md'] 
+  },
 ];
 
 // Simple Portal implementation to render the badge safely outside of parent overflow cropping
@@ -392,6 +400,8 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen })
           'attendance': '/attendance',
           'task assign': '/todo',
           'todo': '/todo',
+          'task payments': '/employee-task-payments',
+          'employee task payments': '/employee-task-payments',
         };
         const extraAllowedPaths = [];
         for (const perm of allowedSet) {
@@ -407,6 +417,8 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen })
 
             const isParentAllowed = 
               item.path === '/leaves' ||
+              item.path === '/todo' ||
+              item.label === 'Task Assign' ||
               item.path === '/marketing-dashboard' ||
               item.label === 'Marketing Dashboard' ||
               allowedSet.includes(itemLabelLower) || 

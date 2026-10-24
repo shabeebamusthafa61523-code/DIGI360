@@ -74,6 +74,27 @@ const taskSchema = new mongoose.Schema(
     },
 
     // ============================================================
+    // TASK PAYMENT & COMPENSATION
+    // ============================================================
+
+    payment: {
+      type: Number,
+      default: 0,
+      min: [0, 'Payment amount cannot be negative']
+    },
+
+    paymentStatus: {
+      type: String,
+      enum: ['unpaid', 'pending', 'paid'],
+      default: 'unpaid'
+    },
+
+    paymentCurrency: {
+      type: String,
+      default: 'INR'
+    },
+
+    // ============================================================
     // LEGACY FILE / IMAGE SUPPORT
     // ============================================================
 
@@ -853,6 +874,10 @@ const taskSchema = new mongoose.Schema(
 taskSchema.index({
   assigned_to: 1,
   status: 1
+});
+
+taskSchema.index({
+  payment: 1
 });
 
 taskSchema.index({

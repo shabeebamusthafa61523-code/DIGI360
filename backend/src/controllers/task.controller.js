@@ -450,7 +450,7 @@ const formatEntityRef = (entity, extraFields = []) => {
   return formatted;
 };
 
-const formatLeanTask = (task) => {
+const formatLeanTask = (task, isPrivileged = true) => {
   if (!task) return null;
 
   const id = normalizeId(task._id || task.id);
@@ -466,6 +466,9 @@ const formatLeanTask = (task) => {
     description: task.description || "",
     status: task.status,
     priority: task.priority,
+    payment: isPrivileged ? (typeof task.payment === 'number' ? task.payment : (Number(task.payment) || 0)) : 0,
+    paymentStatus: isPrivileged ? (task.paymentStatus || 'unpaid') : 'unpaid',
+    paymentCurrency: task.paymentCurrency || 'INR',
     designation_id: task.designation_id,
     dueDate: task.dueDate || null,
     createdAt: task.createdAt,
@@ -556,14 +559,14 @@ const applyTaskPopulates = (query) => {
   return query;
 };
 
-const formatTaskList = (tasks) => {
+const formatTaskList = (tasks, isPrivileged = true) => {
   if (!Array.isArray(tasks)) return [];
 
   const formatted = [];
 
   for (const task of tasks) {
     try {
-      const safeTask = formatLeanTask(task);
+      const safeTask = formatLeanTask(task, isPrivileged);
       if (safeTask) formatted.push(safeTask);
     } catch (formatError) {
       console.error(
@@ -695,6 +698,9 @@ export const createTask = async (req, res, next) => {
       project,
       priority,
       status,
+      payment,
+      paymentStatus,
+      paymentCurrency,
     } = req.body;
 
     if (!title?.trim()) {
@@ -769,6 +775,16 @@ export const createTask = async (req, res, next) => {
         ? String(priority).toLowerCase()
         : "medium";
 
+    const normalizedPayment =
+      payment !== undefined && payment !== "" && !isNaN(Number(payment))
+        ? Math.max(0, Number(payment))
+        : 0;
+
+    const normalizedPaymentStatus =
+      paymentStatus && ["unpaid", "pending", "paid"].includes(String(paymentStatus).toLowerCase())
+        ? String(paymentStatus).toLowerCase()
+        : "unpaid";
+
     const task = new Task({
       title: title.trim(),
 
@@ -787,6 +803,12 @@ export const createTask = async (req, res, next) => {
       status: normalizedStatus,
 
       priority: normalizedPriority,
+
+      payment: normalizedPayment,
+
+      paymentStatus: normalizedPaymentStatus,
+
+      paymentCurrency: paymentCurrency || "INR",
 
       created_by: userId,
 
@@ -1026,7 +1048,10 @@ export const getAllTasks = async (req, res, next) => {
 
     const tasks = await findTasksSafe(query);
 
-    return res.status(200).json(formatTaskList(tasks));
+    const isSuperAdmin = isSuperAdminUser(req);
+    const isPrivileged = Boolean(isAdminOrHr || isManagerOrLead || isSuperAdmin);
+
+    return res.status(200).json(formatTaskList(tasks, isPrivileged));
   } catch (error) {
     console.error("GET ALL TASKS ERROR:", error);
     next(error);
@@ -1072,7 +1097,10 @@ export const getUserTasks = async (req, res, next) => {
       ],
     });
 
-    return res.status(200).json(formatTaskList(tasks));
+    const isSuperAdmin = isSuperAdminUser(req);
+    const isPrivileged = Boolean(isAdminOrHr || isManagerOrLead || isSuperAdmin);
+
+    return res.status(200).json(formatTaskList(tasks, isPrivileged));
   } catch (error) {
     console.error("GET USER TASKS ERROR:", error);
     next(error);
@@ -1115,7 +1143,12 @@ export const getCurrentUserTasks = async (req, res, next) => {
       ],
     });
 
-    return res.status(200).json(formatTaskList(tasks));
+    const context = await getUserPermissionContext(req);
+    const { isAdminOrHr, isManagerOrLead } = context;
+    const isSuperAdmin = isSuperAdminUser(req);
+    const isPrivileged = Boolean(isAdminOrHr || isManagerOrLead || isSuperAdmin);
+
+    return res.status(200).json(formatTaskList(tasks, isPrivileged));
   } catch (error) {
     console.error("GET CURRENT USER TASKS ERROR:", error);
     next(error);
@@ -1362,6 +1395,9 @@ export const updateTask = async (req, res, next) => {
       priority,
       dueDate,
       status,
+      payment,
+      paymentStatus,
+      paymentCurrency,
     } = req.body;
 
     /* Basic fields */
@@ -1452,6 +1488,24 @@ export const updateTask = async (req, res, next) => {
 
     if (designation_id !== undefined) {
       task.designation_id = designation_id || undefined;
+    }
+
+    /* Payment & Compensation */
+
+    if (payment !== undefined && payment !== "") {
+      const pNum = Number(payment);
+      task.payment = isNaN(pNum) ? 0 : Math.max(0, pNum);
+    }
+
+    if (paymentStatus !== undefined) {
+      const pStatus = String(paymentStatus).trim().toLowerCase();
+      if (["unpaid", "pending", "paid"].includes(pStatus)) {
+        task.paymentStatus = pStatus;
+      }
+    }
+
+    if (paymentCurrency !== undefined) {
+      task.paymentCurrency = String(paymentCurrency).trim() || "INR";
     }
 
     /* New attachments */
@@ -2356,6 +2410,232 @@ export const deleteTaskAttachment = async (req, res, next) => {
     });
   } catch (error) {
     console.error("DELETE TASK ATTACHMENT ERROR:", error);
+    next(error);
+  }
+};
+
+/* =========================================================
+   GET EMPLOYEE TASK PAYMENTS SUMMARY
+   GET /api/v1/tasks/employee-payments
+========================================================= */
+
+export const getEmployeeTaskPaymentsSummary = async (req, res, next) => {
+  try {
+    const context = await getUserPermissionContext(req);
+    const { isAdminOrHr, isManagerOrLead } = context;
+    const isSuperAdmin = isSuperAdminUser(req);
+
+    if (!isAdminOrHr && !isManagerOrLead && !isSuperAdmin) {
+      throw new AppError("Access denied: Task payments are restricted to managers and administrators", 403);
+    }
+
+    const { department, status, search, startDate, endDate } = req.query;
+
+    const matchStage = {};
+    if (startDate || endDate) {
+      matchStage.createdAt = {};
+      if (startDate) {
+        const s = new Date(startDate);
+        if (!isNaN(s.getTime())) matchStage.createdAt.$gte = s;
+      }
+      if (endDate) {
+        const e = new Date(endDate);
+        if (!isNaN(e.getTime())) {
+          e.setHours(23, 59, 59, 999);
+          matchStage.createdAt.$lte = e;
+        }
+      }
+    }
+
+    if (status && status !== "all") {
+      if (status === "completed") {
+        matchStage.status = { $in: ["completed", "done"] };
+      } else if (status === "pending") {
+        matchStage.status = { $nin: ["completed", "done", "cancelled"] };
+      } else {
+        matchStage.status = String(status).toLowerCase();
+      }
+    }
+
+    const pipeline = [
+      ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+      { $unwind: "$assigned_to" },
+      {
+        $addFields: {
+          assigneeStr: { $toString: "$assigned_to" },
+        },
+      },
+      {
+        $match: {
+          assigneeStr: { $regex: /^[0-9a-fA-F]{24}$/ },
+        },
+      },
+      {
+        $addFields: {
+          assigneeObjectId: { $toObjectId: "$assigneeStr" },
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "assigneeObjectId",
+          foreignField: "_id",
+          as: "employee",
+        },
+      },
+      { $unwind: "$employee" },
+    ];
+
+    if (department && department !== "all") {
+      pipeline.push({
+        $match: {
+          "employee.department": { $regex: new RegExp(`^${department}$`, "i") },
+        },
+      });
+    }
+
+    if (search && String(search).trim()) {
+      const q = String(search).trim();
+      pipeline.push({
+        $match: {
+          $or: [
+            { "employee.name": { $regex: q, $options: "i" } },
+            { "employee.email": { $regex: q, $options: "i" } },
+            { "employee.employeeId": { $regex: q, $options: "i" } },
+            { "employee.designation": { $regex: q, $options: "i" } },
+          ],
+        },
+      });
+    }
+
+    pipeline.push({
+      $group: {
+        _id: "$employee._id",
+        employee: {
+          $first: {
+            id: "$employee._id",
+            name: "$employee.name",
+            email: "$employee.email",
+            phone: "$employee.phone",
+            employeeId: "$employee.employeeId",
+            designation: "$employee.designation",
+            department: "$employee.department",
+            avatar: "$employee.avatar",
+            profile_image: "$employee.profile_image",
+            role: "$employee.role",
+            salary: "$employee.salary",
+          },
+        },
+        totalTasks: { $sum: 1 },
+        completedTasks: {
+          $sum: {
+            $cond: [{ $in: ["$status", ["completed", "done"]] }, 1, 0],
+          },
+        },
+        pendingTasks: {
+          $sum: {
+            $cond: [{ $not: [{ $in: ["$status", ["completed", "done", "cancelled"]] }] }, 1, 0],
+          },
+        },
+        cancelledTasks: {
+          $sum: {
+            $cond: [{ $eq: ["$status", "cancelled"] }, 1, 0],
+          },
+        },
+        totalPayment: {
+          $sum: { $ifNull: ["$payment", 0] },
+        },
+        completedPayment: {
+          $sum: {
+            $cond: [
+              { $in: ["$status", ["completed", "done"]] },
+              { $ifNull: ["$payment", 0] },
+              0,
+            ],
+          },
+        },
+        pendingPayment: {
+          $sum: {
+            $cond: [
+              { $not: [{ $in: ["$status", ["completed", "done", "cancelled"]] }] },
+              { $ifNull: ["$payment", 0] },
+              0,
+            ],
+          },
+        },
+        paidPayment: {
+          $sum: {
+            $cond: [
+              { $eq: ["$paymentStatus", "paid"] },
+              { $ifNull: ["$payment", 0] },
+              0,
+            ],
+          },
+        },
+        unpaidPayment: {
+          $sum: {
+            $cond: [
+              { $ne: ["$paymentStatus", "paid"] },
+              { $ifNull: ["$payment", 0] },
+              0,
+            ],
+          },
+        },
+        tasks: {
+          $push: {
+            id: "$_id",
+            title: "$title",
+            payment: { $ifNull: ["$payment", 0] },
+            paymentStatus: { $ifNull: ["$paymentStatus", "unpaid"] },
+            status: "$status",
+            priority: "$priority",
+            dueDate: "$dueDate",
+            createdAt: "$createdAt",
+          },
+        },
+      },
+    });
+
+    pipeline.push({
+      $sort: { totalPayment: -1, totalTasks: -1 },
+    });
+
+    const employeesSummary = await Task.aggregate(pipeline);
+
+    const grandTotals = employeesSummary.reduce(
+      (acc, curr) => {
+        acc.totalAllocatedPayment += curr.totalPayment || 0;
+        acc.totalCompletedPayment += curr.completedPayment || 0;
+        acc.totalPendingPayment += curr.pendingPayment || 0;
+        acc.totalPaidPayment += curr.paidPayment || 0;
+        acc.totalUnpaidPayment += curr.unpaidPayment || 0;
+        acc.totalTasks += curr.totalTasks || 0;
+        acc.totalCompletedTasks += curr.completedTasks || 0;
+        acc.totalPendingTasks += curr.pendingTasks || 0;
+        return acc;
+      },
+      {
+        totalAllocatedPayment: 0,
+        totalCompletedPayment: 0,
+        totalPendingPayment: 0,
+        totalPaidPayment: 0,
+        totalUnpaidPayment: 0,
+        totalTasks: 0,
+        totalCompletedTasks: 0,
+        totalPendingTasks: 0,
+        totalEmployees: employeesSummary.length,
+      },
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        summary: grandTotals,
+        employees: employeesSummary,
+      },
+    });
+  } catch (error) {
+    console.error("GET EMPLOYEE TASK PAYMENTS SUMMARY ERROR:", error);
     next(error);
   }
 };

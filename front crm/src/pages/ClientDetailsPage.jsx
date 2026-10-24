@@ -14,12 +14,21 @@ import {
   deleteClientMeeting,
   createClientFollowup,
   updateClientFollowup,
-  deleteClientFollowup
+  deleteClientFollowup,
+  getClientProposals,
+  createClientProposal,
+  updateClientProposal,
+  deleteClientProposal
 } from '../services/clientService';
 import { useToast } from '../components/ToastProvider';
 import { formatApiError } from '../utils/errorUtils';
 import EditClientModal from '../components/clients/EditClientModal';
 import ConfirmModal from '../components/ConfirmModal';
+import ClientProposalModal from '../components/clients/ClientProposalModal';
+import ProposalPdfTemplate from '../components/clients/ProposalPdfTemplate';
+import ProposalPreviewDoc from '../components/clients/ProposalPreviewDoc';
+import { exportProposalToPdf } from '../utils/proposalPdfUtils';
+import { Download, Sparkles, Share2, Printer, Loader2 } from 'lucide-react';
 
 const ClientDetailsPage = () => {
   const { id } = useParams();
@@ -83,10 +92,19 @@ const ClientDetailsPage = () => {
     status: 'Pending'
   });
 
-  // Meetings, Follow-ups, Projects data state
+  // Meetings, Follow-ups, Projects, Proposals data state
   const [meetings, setMeetings] = useState([]);
   const [followups, setFollowups] = useState([]);
   const [clientProjects, setClientProjects] = useState([]);
+  const [proposals, setProposals] = useState([]);
+
+  // Proposal modal & PDF states
+  const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
+  const [editingProposal, setEditingProposal] = useState(null);
+  const [activePreviewProposal, setActivePreviewProposal] = useState(null);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [isPdfGenerating, setIsPdfGenerating] = useState(false);
+  const [proposalSubmitting, setProposalSubmitting] = useState(false);
 
   useEffect(() => {
     if (!id || id === 'undefined' || id === 'null') {
@@ -163,6 +181,9 @@ const ClientDetailsPage = () => {
 
         setMeetings(initialMeetings);
         setFollowups(initialFollowups);
+        if (res.data?.proposals) {
+          setProposals(res.data.proposals);
+        }
       } else {
         showToast(formatApiError(res, "Failed to load client details"), "error");
       }
@@ -534,6 +555,123 @@ const ClientDetailsPage = () => {
   const daysInMonth = new Date(currYear, currMonth + 1, 0).getDate();
   const firstDayOfWeek = new Date(currYear, currMonth, 1).getDay();
 
+  // Proposal Handlers
+  const fetchProposals = async () => {
+    try {
+      const clientId = data?.client?._id || data?.client?.id || id;
+      const res = await getClientProposals(clientId);
+      if (res && res.success) {
+        setProposals(res.data || []);
+      }
+    } catch (err) {
+      console.error("Error fetching proposals:", err);
+    }
+  };
+
+  const handleOpenCreateProposal = () => {
+    setEditingProposal(null);
+    setIsProposalModalOpen(true);
+  };
+
+  const handleOpenEditProposal = (prop) => {
+    setEditingProposal(prop);
+    setIsProposalModalOpen(true);
+  };
+
+  const handleSaveProposal = async (formData) => {
+    setProposalSubmitting(true);
+    try {
+      const clientId = data?.client?._id || data?.client?.id || id;
+      if (editingProposal) {
+        const propId = editingProposal.id || editingProposal._id;
+        const res = await updateClientProposal(clientId, propId, formData);
+        if (res && res.success) {
+          showToast('Proposal updated successfully!', 'success');
+          setIsProposalModalOpen(false);
+          setEditingProposal(null);
+          fetchProposals();
+        } else {
+          showToast(formatApiError(res, 'Failed to update proposal'), 'error');
+        }
+      } else {
+        const res = await createClientProposal(clientId, formData);
+        if (res && res.success) {
+          showToast('Proposal created successfully!', 'success');
+          setIsProposalModalOpen(false);
+          fetchProposals();
+        } else {
+          showToast(formatApiError(res, 'Failed to create proposal'), 'error');
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      showToast(formatApiError(err, 'Error saving proposal'), 'error');
+    } finally {
+      setProposalSubmitting(false);
+    }
+  };
+
+  const handleDeleteProposal = (prop) => {
+    const propId = prop.id || prop._id;
+    const clientId = data?.client?._id || data?.client?.id || id;
+    setDeleteConfirm({
+      isOpen: true,
+      title: 'Delete Proposal',
+      message: `Are you sure you want to delete proposal "${prop.title || prop.proposalNumber}"?`,
+      onConfirm: async () => {
+        try {
+          const res = await deleteClientProposal(clientId, propId);
+          if (res && res.success) {
+            showToast('Proposal deleted successfully!', 'success');
+            fetchProposals();
+          } else {
+            showToast(formatApiError(res, 'Failed to delete proposal'), 'error');
+          }
+        } catch (err) {
+          showToast(formatApiError(err, 'Error deleting proposal'), 'error');
+        } finally {
+          setDeleteConfirm(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
+  };
+
+  const handleDownloadPdf = async (prop) => {
+    setIsPdfGenerating(true);
+    setActivePreviewProposal(prop);
+    try {
+      await new Promise(r => setTimeout(r, 250));
+      const element = document.getElementById('proposal-document-export-root') || document.getElementById('proposal-pdf-container');
+      if (!element) throw new Error("Proposal export template could not be loaded");
+
+      const clientClean = String(prop?.clientName || client?.companyName || 'Client').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const typeClean = String(prop?.proposalType || 'Proposal').replace(/[^a-zA-Z0-9_-]/g, '_');
+
+      const isA4Doc = !!document.getElementById('proposal-document-export-root');
+      if (isA4Doc) {
+        await exportProposalToPdf(element, `${clientClean}_${typeClean}_Proposal.pdf`);
+      } else {
+        const html2pdfModule = await import('html2pdf.js');
+        const html2pdfInstance = html2pdfModule.default || html2pdfModule;
+        const opt = {
+          margin: 0,
+          filename: `${clientClean}_${typeClean}_Proposal.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: 'px', format: [1120, 630], orientation: 'landscape', hotfixes: ['px_scaling'] },
+          pagebreak: { mode: ['css', 'legacy'] }
+        };
+        await html2pdfInstance().set(opt).from(element).save();
+      }
+      showToast("Proposal PDF downloaded successfully!", "success");
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      showToast("Failed to generate PDF: " + err.message, "error");
+    } finally {
+      setIsPdfGenerating(false);
+    }
+  };
+
   // Events for selected calendar date modal
   const selectedDateMeetings = meetings.filter(m => m.date === selectedCalendarDate);
   const selectedDateFollowups = followups.filter(f => f.dueDate === selectedCalendarDate);
@@ -604,6 +742,13 @@ const ClientDetailsPage = () => {
 
         <div className="flex items-center gap-2.5 w-full md:w-auto justify-end flex-wrap">
           <button
+            onClick={handleOpenCreateProposal}
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold shadow-md shadow-violet-600/20 transition-all cursor-pointer hover:scale-[1.02]"
+          >
+            <FileText className="w-4 h-4" />
+            <span>Create Proposal</span>
+          </button>
+          <button
             onClick={() => handleOpenAddMeeting()}
             className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition-all cursor-pointer hover:scale-[1.02]"
           >
@@ -638,6 +783,7 @@ const ClientDetailsPage = () => {
       <div className="flex gap-2 border-b border-slate-200 dark:border-slate-800/80 pb-1 overflow-x-auto">
         {[
           { id: 'overview', label: 'Overview & Info', icon: Building },
+          { id: 'proposals', label: `Proposals (${proposals.length})`, icon: FileText },
           { id: 'projects', label: `Projects (${clientProjects.length})`, icon: FolderKanban },
           { id: 'meetings', label: `Meetings (${meetings.length})`, icon: Video },
           { id: 'followups', label: `Follow-ups (${followups.length})`, icon: CheckSquare },
@@ -1348,6 +1494,179 @@ const ClientDetailsPage = () => {
         </div>
       )}
 
+      {/* PROPOSALS TAB */}
+      {activeTab === 'proposals' && (
+        <div className="flex flex-col gap-6">
+          {/* Top Banner & Stats */}
+          <div className="p-6 md:p-8 rounded-3xl bg-gradient-to-r from-violet-900/20 via-slate-900/60 to-indigo-900/20 border border-violet-500/20 backdrop-blur-md shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-violet-500/20 text-violet-400 font-bold text-[10px] uppercase tracking-wider border border-violet-500/30">
+                  Commercial Documents
+                </span>
+                <span className="text-xs text-slate-400 font-medium">Digital Marketing & Creative Decks</span>
+              </div>
+              <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-2">
+                <FileText className="text-violet-400" /> Client Proposals for {client?.companyName}
+              </h2>
+              <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
+                Create, customize, and export high-impact digital marketing proposals with branded co-logos, objectives, service scope, deliverables, and commercial terms.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 w-full md:w-auto shrink-0">
+              <button
+                onClick={handleOpenCreateProposal}
+                className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-extrabold text-xs shadow-lg shadow-violet-600/30 transition-all cursor-pointer hover:scale-[1.02]"
+              >
+                <Plus size={16} />
+                <span>Create New Proposal</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Proposals List */}
+          {proposals.length === 0 ? (
+            <div className="p-12 rounded-3xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 backdrop-blur-md text-center flex flex-col items-center justify-center gap-4">
+              <div className="w-16 h-16 rounded-3xl bg-violet-600/10 text-violet-600 dark:bg-violet-500/20 dark:text-violet-400 flex items-center justify-center shadow-inner">
+                <FileText size={32} />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                  No Proposals Created Yet
+                </h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                  Generate a branded proposal for {client?.companyName || 'this client'} with customized campaign goals, deliverables, pricing, and download ready-to-share PDF documents.
+                </p>
+              </div>
+              <button
+                onClick={handleOpenCreateProposal}
+                className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs shadow-md shadow-violet-600/20 transition cursor-pointer"
+              >
+                <Plus size={14} />
+                <span>Create First Proposal</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {proposals.map((prop) => {
+                const propId = prop.id || prop._id;
+                const clientDisplayName = prop.clientName || client?.companyName || 'Client';
+                const statusColor = 
+                  prop.status === 'Accepted' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                  prop.status === 'Sent' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20' :
+                  prop.status === 'Declined' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
+                  'bg-slate-500/10 text-slate-400 border-slate-500/20';
+
+                return (
+                  <div 
+                    key={propId} 
+                    className="p-5 rounded-3xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800/80 backdrop-blur-md shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-5 group"
+                  >
+                    <div className="space-y-3">
+                      {/* Top metadata */}
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                          {prop.proposalNumber || 'PROP-001'}
+                        </span>
+                        <span className={`px-2.5 py-0.5 text-[10px] font-extrabold uppercase rounded-full border ${statusColor}`}>
+                          {prop.status || 'Draft'}
+                        </span>
+                      </div>
+
+                      {/* Title & Branding */}
+                      <div>
+                        <div className="text-[10px] font-extrabold uppercase tracking-widest text-violet-500 mb-0.5">
+                          {prop.proposalType || 'DIGITAL MARKETING'}
+                        </div>
+                        <h3 className="text-sm font-black text-slate-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+                          {prop.title || 'DIGITAL MARKETING PROPOSAL'}
+                        </h3>
+                      </div>
+
+                      {/* Co-Branding snippet */}
+                      <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
+                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                          {clientDisplayName}
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-400">
+                          {prop.useLogoImage && prop.clientLogo ? '✓ Custom Logo' : 'Text Brand'}
+                        </span>
+                      </div>
+
+                      {/* Pricing & Deliverables Preview */}
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
+                            Total Commercials
+                          </span>
+                          <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
+                            {prop.totalCost || 'Rs 13,200'}
+                          </span>
+                        </div>
+                        {prop.planDeliverables && (
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                            {prop.planDeliverables}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => {
+                            setActivePreviewProposal(prop);
+                            setIsPreviewModalOpen(true);
+                          }}
+                          className="p-2 rounded-xl text-slate-500 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-950/30 transition cursor-pointer"
+                          title="Preview Document"
+                        >
+                          <Eye size={15} />
+                        </button>
+                        <button
+                          onClick={() => handleOpenEditProposal(prop)}
+                          className="p-2 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition cursor-pointer"
+                          title="Edit Proposal"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProposal(prop)}
+                          className="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer"
+                          title="Delete Proposal"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+
+                      <button
+                        disabled={isPdfGenerating}
+                        onClick={() => handleDownloadPdf(prop)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs shadow-sm shadow-violet-600/20 transition cursor-pointer disabled:opacity-50"
+                      >
+                        {isPdfGenerating && activePreviewProposal?.id === propId ? (
+                          <>
+                            <Loader2 size={13} className="animate-spin" />
+                            <span>Exporting...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Download size={13} />
+                            <span>Download PDF</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Edit Client Modal */}
       <EditClientModal
         isOpen={editOpen}
@@ -1802,6 +2121,91 @@ const ClientDetailsPage = () => {
         </div>,
         document.body
       )}
+
+      {/* Client Proposal Create & Edit Modal */}
+      <ClientProposalModal
+        isOpen={isProposalModalOpen}
+        onClose={() => { setIsProposalModalOpen(false); setEditingProposal(null); }}
+        onSubmit={handleSaveProposal}
+        proposal={editingProposal}
+        client={client}
+        loading={proposalSubmitting}
+      />
+
+      {/* Proposal Document Preview Modal - Clean White Background */}
+      {isPreviewModalOpen && activePreviewProposal && createPortal(
+        <div className="fixed inset-0 z-[99999] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-5xl w-full flex flex-col max-h-[94vh] overflow-hidden my-auto">
+            {/* Top Preview Bar */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white shrink-0">
+              <div className="flex items-center gap-3">
+                <span className="p-2.5 rounded-xl bg-violet-50 text-violet-600">
+                  <FileText size={18} />
+                </span>
+                <div>
+                  <h3 className="text-sm font-black uppercase text-slate-900">
+                    {activePreviewProposal.title || 'Proposal Document Preview'}
+                  </h3>
+                  <span className="text-xs text-slate-500 font-medium">
+                    {activePreviewProposal.clientName || client?.companyName} • {activePreviewProposal.proposalNumber}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
+                  title="Print A4 Proposal"
+                >
+                  <Printer size={14} className="text-slate-500" />
+                  <span>Print</span>
+                </button>
+
+                <button
+                  disabled={isPdfGenerating}
+                  onClick={() => handleDownloadPdf(activePreviewProposal)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold shadow-lg shadow-violet-600/25 transition cursor-pointer disabled:opacity-50"
+                >
+                  {isPdfGenerating ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Exporting PDF...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download size={14} />
+                      <span>Download Formatted PDF</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setIsPreviewModalOpen(false)}
+                  className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition cursor-pointer ml-1"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Document Content View - White Studio Canvas */}
+            <div className="flex-1 overflow-y-auto overflow-x-auto p-4 sm:p-8 bg-slate-50 flex justify-center items-start">
+              <ProposalPreviewDoc proposal={activePreviewProposal} client={client} isEditable={false} />
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Hidden PDF Generation Container for Direct Export */}
+      <div style={{ position: 'absolute', left: '-99999px', top: 0 }}>
+        {activePreviewProposal && (
+          <ProposalPreviewDoc proposal={activePreviewProposal} client={client} isEditable={false} />
+        )}
+      </div>
+
       <ConfirmModal
         isOpen={deleteConfirm.isOpen}
         onClose={() => setDeleteConfirm(prev => ({ ...prev, isOpen: false }))}

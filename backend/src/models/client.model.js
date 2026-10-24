@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { clientProposalSchema } from './clientProposal.model.js';
 
 const clientSchema = new mongoose.Schema({
   companyName: {
@@ -158,6 +159,7 @@ const clientSchema = new mongoose.Schema({
     url: { type: String },
     uploadedAt: { type: Date, default: Date.now }
   }],
+  proposals: [clientProposalSchema],
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
