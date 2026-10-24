@@ -229,6 +229,8 @@ const PermissionModal = ({ isOpen, onClose, user, onSave, showToast, getAuthHead
   // Group items by category
   const categories = [...new Set(availableSidebarItems.map(i => i.category))];
 
+  if (!isOpen || !user) return null;
+
   return createPortal(
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -245,7 +247,7 @@ const PermissionModal = ({ isOpen, onClose, user, onSave, showToast, getAuthHead
               <ShieldCheck size={24} className="text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-black tracking-tight">{user.name}</h2>
+              <h2 className="text-lg font-black tracking-tight">{user?.name || 'User'}</h2>
               <p className="text-xs text-indigo-100 font-bold uppercase tracking-wider">Configure Sidebar Access & Permissions</p>
             </div>
           </div>
