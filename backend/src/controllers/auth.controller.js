@@ -281,6 +281,8 @@ export const login = async (req, res) => {
         joining_date: user.joining_date,
         isTeamLead,
         permissions: user.permissions || [],
+        shift_start_time: user.shift_start_time || user.shiftStartTime || '09:00',
+        shift_end_time: user.shift_end_time || user.shiftEndTime || '18:00',
         isSuperAdmin: Boolean(user.isSuperAdmin || user.role === 'superadmin' || user.role_id === '0'),
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
@@ -494,6 +496,8 @@ export const googleLogin = async (req, res) => {
         status: user.status || "active",
         joining_date: user.joining_date,
         permissions: user.permissions || [],
+        shift_start_time: user.shift_start_time || user.shiftStartTime || '09:00',
+        shift_end_time: user.shift_end_time || user.shiftEndTime || '18:00',
         isSuperAdmin: isSuperAdminUser,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
