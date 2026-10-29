@@ -3,6 +3,7 @@
 // ===============================
 
 import Attendance from '../models/attendance.model.js';
+import User from '../models/user.model.js';
 
 const getISTDate = () => {
   return new Intl.DateTimeFormat('en-CA', {
@@ -10,7 +11,7 @@ const getISTDate = () => {
   }).format(new Date());
 };
 
-const checkIsLate = (dateObj) => {
+const checkIsLate = (dateObj, shiftStart = '09:00') => {
   try {
     const istTime = dateObj.toLocaleString('en-US', {
       timeZone: 'Asia/Kolkata',
@@ -23,9 +24,16 @@ const checkIsLate = (dateObj) => {
       .split(':')
       .map(Number);
 
+    const [startH, startM] = String(shiftStart || '09:00')
+      .split(':')
+      .map(Number);
+
+    const targetH = isNaN(startH) ? 9 : startH;
+    const targetM = isNaN(startM) ? 0 : startM;
+
     return (
-      hours > 9 ||
-      (hours === 9 && minutes > 0)
+      hours > targetH ||
+      (hours === targetH && minutes > targetM)
     );
 
   } catch {
@@ -107,10 +115,15 @@ export const checkIn = async (req, res) => {
 
     const now = new Date();
 
-    const existing = await Attendance.findOne({
-      user_id: userId,
-      date: todayStr
-    });
+    const [existing, userObj] = await Promise.all([
+      Attendance.findOne({
+        user_id: userId,
+        date: todayStr
+      }),
+      User.findById(userId).select('shift_start_time shift_end_time shiftStartTime shiftEndTime')
+    ]);
+
+    const userShiftStart = userObj?.shift_start_time || userObj?.shiftStartTime || '09:00';
 
     if (existing?.check_in_time) {
       return res.status(400).json({
@@ -131,7 +144,7 @@ export const checkIn = async (req, res) => {
             date: todayStr,
             status: 'PRESENT',
             check_in_time: now,
-            is_late: checkIsLate(now)
+            is_late: checkIsLate(now, userShiftStart)
           }
         },
         {
@@ -258,7 +271,7 @@ export const getAllAttendanceByDate =
     async (req, res) => {
       try {
         const { date } = req.params;
-        const records = await Attendance.find({ date }).populate('user_id', 'name email role department designation employeeId avatar profile_image');
+        const records = await Attendance.find({ date }).populate('user_id', 'name email role department designation employeeId avatar profile_image shift_start_time shift_end_time shiftStartTime shiftEndTime');
         return res.status(200).json(records.map(serializeAttendance));
       } catch (err) {
         console.error(err);
@@ -286,6 +299,9 @@ export const markUserAttendance = async (req, res) => {
       computedOvertime = metrics.overtime;
     }
 
+    const userObj = await User.findById(user_id).select('shift_start_time shift_end_time shiftStartTime shiftEndTime');
+    const userShiftStart = userObj?.shift_start_time || userObj?.shiftStartTime || '09:00';
+
     const record = await Attendance.findOneAndUpdate(
       { user_id, date },
       {
@@ -296,12 +312,12 @@ export const markUserAttendance = async (req, res) => {
           check_in_time: checkInDate,
           check_out_time: checkOutDate,
           working_hours: computedHours,
-          is_late: is_late ?? (checkInDate ? checkIsLate(checkInDate) : false),
+          is_late: is_late !== undefined ? is_late : (checkInDate ? checkIsLate(checkInDate, userShiftStart) : false),
           overtime: computedOvertime
         }
       },
       { upsert: true, new: true }
-    ).populate('user_id', 'name email role department designation employeeId avatar profile_image');
+    ).populate('user_id', 'name email role department designation employeeId avatar profile_image shift_start_time shift_end_time shiftStartTime shiftEndTime');
 
     return res.status(200).json(serializeAttendance(record));
   } catch (error) {

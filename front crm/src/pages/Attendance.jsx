@@ -5,7 +5,6 @@
 // ==========================================
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '../contexts/UserContext';
 import {
@@ -15,13 +14,11 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
-  Users,
   RefreshCw,
   Calendar,
   ChevronRight,
   UserCheck,
-  History,
-  ArrowUpRight
+  History
 } from 'lucide-react';
 
 const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '');
@@ -234,22 +231,6 @@ const Attendance = () => {
     return calculateWorkingHours(todayLog.check_in_time, currentTime);
   }, [todayLog, currentTime]);
 
-  // Check if current user has permission to view full staff attendance roster
-  const canAccessStaffLogs = useMemo(() => {
-    if (!currentUser) return true;
-    const role = String(currentUser.role_id || currentUser.roleId || currentUser.role || '').toLowerCase();
-    const designation = String(currentUser.designation || '').toLowerCase();
-    return (
-      currentUser.isSuperAdmin ||
-      currentUser.is_super_admin ||
-      ['0', '1', '2', '3', 'admin', 'superadmin', 'hr', 'manager', 'team_lead', 'teamlead', 'tl', 'md', 'coo'].includes(role) ||
-      designation.includes('hr') ||
-      designation.includes('lead') ||
-      designation.includes('manager') ||
-      designation.includes('admin')
-    );
-  }, [currentUser]);
-
   // Resolve user display info
   const displayName = currentUser?.name || 'Employee';
   const displayDepartment = currentUser?.department || currentUser?.designation || currentUser?.role || 'R&D';
@@ -294,17 +275,6 @@ const Attendance = () => {
           >
             <RefreshCw size={14} className={loading ? "animate-spin text-indigo-500" : "text-indigo-500"} />
           </button>
-
-          {canAccessStaffLogs && (
-            <Link
-              to="/staff-attendance"
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 text-xs font-bold transition border border-indigo-200 dark:border-indigo-800 shadow-xs cursor-pointer"
-            >
-              <Users size={14} />
-              <span>Attendance Logs</span>
-              <ArrowUpRight size={13} />
-            </Link>
-          )}
         </div>
       </div>
 
@@ -366,9 +336,16 @@ const Attendance = () => {
               <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100">
                 {displayName}
               </h2>
-              <p className="text-xs text-slate-400 font-medium">
-                {displayDepartment}
-              </p>
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                <p className="text-xs text-slate-400 font-medium">
+                  {displayDepartment}
+                </p>
+                {(currentUser?.shift_start_time || currentUser?.shiftStartTime) && (
+                  <span className="text-[11px] font-mono font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-800">
+                    Shift: {currentUser.shift_start_time || currentUser.shiftStartTime} - {currentUser.shift_end_time || currentUser.shiftEndTime || '18:00'}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -470,7 +447,9 @@ const Attendance = () => {
           </span>
           <span className="text-xs sm:text-sm font-bold">
             {todayLog?.is_late ? (
-              <span className="text-amber-600 dark:text-amber-400">Late Arrival</span>
+              <span className="text-amber-600 dark:text-amber-400">
+                Late Arrival {(currentUser?.shift_start_time || currentUser?.shiftStartTime) ? `(After ${currentUser.shift_start_time || currentUser.shiftStartTime})` : ''}
+              </span>
             ) : todayLog?.check_in_time ? (
               <span className="text-emerald-600 dark:text-emerald-400">On Time</span>
             ) : (
@@ -478,34 +457,6 @@ const Attendance = () => {
             )}
           </span>
         </div>
-      </div>
-
-      {/* ========================================== */}
-      {/* CONNECT WITH ATTENDANCE LOGS ROSTER BANNER */}
-      {/* ========================================== */}
-      <div className="p-5 rounded-2xl bg-gradient-to-r from-indigo-50/70 via-slate-50 to-indigo-50/40 dark:from-indigo-950/30 dark:via-slate-900 dark:to-indigo-950/20 border border-indigo-200/80 dark:border-indigo-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/20 shrink-0 mt-0.5">
-            <UserCheck size={20} />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-              Connected with Company Attendance Logs
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
-              Your shift punches automatically synchronize in real-time with the master attendance roster and workforce reporting.
-            </p>
-          </div>
-        </div>
-
-        <Link
-          to="/staff-attendance"
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-indigo-600/20 shrink-0 cursor-pointer"
-        >
-          <Users size={15} />
-          <span>View Attendance Logs</span>
-          <ChevronRight size={14} />
-        </Link>
       </div>
 
       {/* ========================================== */}
