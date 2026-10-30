@@ -401,6 +401,8 @@ export const userController = {
         identityType: u.identityType,
         identityNumber: u.identityNumber,
         permissions: u.permissions || [],
+        shift_start_time: u.shift_start_time || u.shiftStartTime || '09:00',
+        shift_end_time: u.shift_end_time || u.shiftEndTime || '18:00',
         isSuperAdmin: u.isSuperAdmin || u.role === 'superadmin'
         });
       });
@@ -482,6 +484,8 @@ export const userController = {
           identityType: user.identityType,
           identityNumber: user.identityNumber,
           permissions: user.permissions || [],
+          shift_start_time: user.shift_start_time || user.shiftStartTime || '09:00',
+          shift_end_time: user.shift_end_time || user.shiftEndTime || '18:00',
           isSuperAdmin: user.isSuperAdmin || user.role === 'superadmin'
         }
       });
@@ -513,7 +517,11 @@ export const userController = {
         salary,
         address,
         identityType,
-        identityNumber
+        identityNumber,
+        shift_start_time,
+        shift_end_time,
+        shiftStartTime,
+        shiftEndTime
       } = req.body;
 
       const searchConditions = [{ email }];
@@ -594,7 +602,11 @@ export const userController = {
           salary: parseFloat(salary) || 0,
           address: address || '',
           identityType: identityType || 'aadhaar',
-          identityNumber: identityNumber || ''
+          identityNumber: identityNumber || '',
+          shift_start_time: shift_start_time || shiftStartTime || '09:00',
+          shift_end_time: shift_end_time || shiftEndTime || '18:00',
+          shiftStartTime: shift_start_time || shiftStartTime || '09:00',
+          shiftEndTime: shift_end_time || shiftEndTime || '18:00'
         });
 
       await recordAudit(req, {
@@ -636,7 +648,9 @@ export const userController = {
           avatar: newUser.avatar || newUser.profile_image || null,
           profile_image: newUser.profile_image || newUser.avatar || null,
           profileImage: newUser.avatar || newUser.profile_image || null,
-          status: newUser.status
+          status: newUser.status,
+          shift_start_time: newUser.shift_start_time || newUser.shiftStartTime || '09:00',
+          shift_end_time: newUser.shift_end_time || newUser.shiftEndTime || '18:00'
         }
       });
 
@@ -682,7 +696,11 @@ export const userController = {
         qualification,
         institution,
         passingYear,
-        coursePreference
+        coursePreference,
+        shift_start_time,
+        shift_end_time,
+        shiftStartTime,
+        shiftEndTime
       } = req.body;
 
       const existingUser =
@@ -727,6 +745,16 @@ export const userController = {
       if (institution !== undefined) updateFields.institution = institution;
       if (passingYear !== undefined) updateFields.passingYear = passingYear;
       if (coursePreference !== undefined) updateFields.coursePreference = coursePreference;
+      if (shift_start_time !== undefined || shiftStartTime !== undefined) {
+        const sStart = shift_start_time || shiftStartTime || '09:00';
+        updateFields.shift_start_time = sStart;
+        updateFields.shiftStartTime = sStart;
+      }
+      if (shift_end_time !== undefined || shiftEndTime !== undefined) {
+        const sEnd = shift_end_time || shiftEndTime || '18:00';
+        updateFields.shift_end_time = sEnd;
+        updateFields.shiftEndTime = sEnd;
+      }
 
       if (email && email !== existingUser.email) {
         const emailTaken = await User.findOne({ email, _id: { $ne: id } });

@@ -76,6 +76,26 @@ const calculateWorkingHours = (checkIn, checkOut, targetDateStr = null) => {
   return Math.max(0, (end.getTime() - start.getTime()) / 3600000).toFixed(2);
 };
 
+const checkUserIsLate = (checkInTime, shiftStartTime = '09:00') => {
+  if (!checkInTime) return false;
+  try {
+    const d = parseAsUTC(checkInTime);
+    const istTime = d.toLocaleTimeString('en-US', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+    const [hours, minutes] = istTime.split(':').map(Number);
+    const [startH, startM] = String(shiftStartTime || '09:00').split(':').map(Number);
+    const targetH = isNaN(startH) ? 9 : startH;
+    const targetM = isNaN(startM) ? 0 : startM;
+    return hours > targetH || (hours === targetH && minutes > targetM);
+  } catch {
+    return false;
+  }
+};
+
 // ==========================================
 // MODAL: LOG / EDIT STAFF ATTENDANCE RECORD
 // ==========================================
@@ -91,19 +111,19 @@ const MarkAttendanceModal = ({ isOpen, onClose, staff, targetDate, onSaveSuccess
       const d = parseAsUTC(staff.checkIn);
       if (d) setInTime(d.toTimeString().substring(0, 5));
     } else {
-      setInTime('09:00');
+      setInTime(staff?.shiftStart || '09:00');
     }
 
     if (staff?.checkOut) {
       const d = parseAsUTC(staff.checkOut);
       if (d) setOutTime(d.toTimeString().substring(0, 5));
     } else {
-      setOutTime('17:00');
+      setOutTime(staff?.shiftEnd || '18:00');
     }
 
     if (staff?.status) {
       if (staff.status === 'ABSENT') setStatus('ABSENT');
-      else if (staff.status === 'LATE') setStatus('LATE');
+      else if (staff.status === 'LATE' || staff.status === 'ACTIVE_LATE' || staff.isLate) setStatus('LATE');
       else setStatus('PRESENT');
     } else {
       setStatus('PRESENT');
@@ -140,7 +160,7 @@ const MarkAttendanceModal = ({ isOpen, onClose, staff, targetDate, onSaveSuccess
           status: selectedStatus,
           check_in_time: checkInISO,
           check_out_time: checkOutISO,
-          is_late: selectedStatus === 'LATE'
+          is_late: selectedStatus === 'LATE' || (checkInISO ? checkUserIsLate(checkInISO, staff?.shiftStart || '09:00') : false)
         })
       });
 
@@ -247,9 +267,9 @@ const MarkAttendanceModal = ({ isOpen, onClose, staff, targetDate, onSaveSuccess
                 disabled={saving}
                 onClick={handleSkip}
                 className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded-xl text-xs font-extrabold transition cursor-pointer disabled:opacity-50"
-                title="Skip custom time entry and set default 9:00 AM - 5:00 PM"
+                title="Skip custom time entry and set shift timing"
               >
-                Skip (Set 9-5)
+                Skip (Set {staff?.shiftStart || '09:00'} - {staff?.shiftEnd || '18:00'})
               </button>
             )}
 
@@ -402,18 +422,21 @@ const StaffAttendance = () => {
     return validUsers.map((user) => {
       const uid = String(user.id || user._id || '');
       const rec = attMap.get(uid);
+      const shiftStart = user.shift_start_time || user.shiftStartTime || (rec?.user_id && typeof rec.user_id === 'object' ? (rec.user_id.shift_start_time || rec.user_id.shiftStartTime) : null) || '09:00';
+      const shiftEnd = user.shift_end_time || user.shiftEndTime || (rec?.user_id && typeof rec.user_id === 'object' ? (rec.user_id.shift_end_time || rec.user_id.shiftEndTime) : null) || '18:00';
 
       if (rec) {
         let hours = rec.working_hours || '0.00';
+        const isLate = rec.is_late !== undefined ? rec.is_late : checkUserIsLate(rec.check_in_time, shiftStart);
         let status = 'PRESENT';
 
         if (rec.check_in_time && !rec.check_out_time) {
-          status = selectedDate === getISTDate() ? 'ACTIVE' : (rec.is_late ? 'LATE' : 'PRESENT');
+          status = selectedDate === getISTDate() ? (isLate ? 'ACTIVE_LATE' : 'ACTIVE') : (isLate ? 'LATE' : 'PRESENT');
           hours = calculateWorkingHours(rec.check_in_time, rec.check_out_time, selectedDate);
         } else if (rec.check_out_time) {
-          status = rec.is_late ? 'LATE' : 'COMPLETED';
+          status = isLate ? 'LATE' : 'COMPLETED';
           hours = rec.working_hours || calculateWorkingHours(rec.check_in_time, rec.check_out_time, selectedDate);
-        } else if (rec.is_late) {
+        } else if (isLate) {
           status = 'LATE';
         }
 
@@ -430,7 +453,9 @@ const StaffAttendance = () => {
           checkOut: rec.check_out_time,
           workingHours: hours,
           overtime: rec.overtime || '0.00',
-          isLate: rec.is_late,
+          isLate,
+          shiftStart,
+          shiftEnd,
           status
         };
       }
@@ -449,6 +474,8 @@ const StaffAttendance = () => {
         workingHours: '0.00',
         overtime: '0.00',
         isLate: false,
+        shiftStart,
+        shiftEnd,
         status: 'ABSENT'
       };
     });
@@ -471,8 +498,8 @@ const StaffAttendance = () => {
 
       if (statusFilter === 'ALL') return true;
       if (statusFilter === 'PRESENT') return item.checkIn !== null || item.status === 'PRESENT' || item.status === 'COMPLETED';
-      if (statusFilter === 'ACTIVE') return item.status === 'ACTIVE';
-      if (statusFilter === 'LATE') return item.isLate === true || item.status === 'LATE';
+      if (statusFilter === 'ACTIVE') return item.status === 'ACTIVE' || item.status === 'ACTIVE_LATE';
+      if (statusFilter === 'LATE') return item.isLate === true || item.status === 'LATE' || item.status === 'ACTIVE_LATE';
       if (statusFilter === 'ABSENT') return item.status === 'ABSENT';
 
       return true;
@@ -482,8 +509,8 @@ const StaffAttendance = () => {
   const summaryStats = useMemo(() => {
     const total = mergedStaffList.length;
     const present = mergedStaffList.filter((i) => i.checkIn !== null || i.status === 'PRESENT' || i.status === 'COMPLETED' || i.status === 'ACTIVE').length;
-    const active = mergedStaffList.filter((i) => i.status === 'ACTIVE').length;
-    const late = mergedStaffList.filter((i) => i.isLate || i.status === 'LATE').length;
+    const active = mergedStaffList.filter((i) => i.status === 'ACTIVE' || i.status === 'ACTIVE_LATE').length;
+    const late = mergedStaffList.filter((i) => i.isLate || i.status === 'LATE' || i.status === 'ACTIVE_LATE').length;
     const absent = mergedStaffList.filter((i) => i.status === 'ABSENT').length;
     return { total, present, active, late, absent };
   }, [mergedStaffList]);
@@ -948,7 +975,12 @@ const StaffAttendance = () => {
                       <td className="py-3.5 px-4">
                         <div>
                           <p className="font-bold text-slate-800 dark:text-slate-200">{item.department}</p>
-                          <span className="text-[10px] text-slate-400 capitalize font-medium">{item.role}</span>
+                          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                            <span className="text-[10px] text-slate-400 capitalize font-medium">{item.role}</span>
+                            <span className="text-[9px] text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-800/40 flex items-center gap-1">
+                              <Clock size={9} /> {item.shiftStart || '09:00'} - {item.shiftEnd || '18:00'}
+                            </span>
+                          </div>
                         </div>
                       </td>
 
@@ -984,10 +1016,14 @@ const StaffAttendance = () => {
                       </td>
 
                       <td className="py-3.5 px-4 text-center">
-                        {item.status === 'ACTIVE' && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            Active
+                        {(item.status === 'ACTIVE' || item.status === 'ACTIVE_LATE') && (
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                            item.status === 'ACTIVE_LATE'
+                              ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+                              : 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${item.status === 'ACTIVE_LATE' ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'}`} />
+                            {item.status === 'ACTIVE_LATE' ? 'Active (Late)' : 'Active'}
                           </span>
                         )}
                         {item.status === 'COMPLETED' && (

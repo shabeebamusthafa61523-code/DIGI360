@@ -87,6 +87,16 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Fallback for missing upload/avatar images so missing disk assets don't cause 404 errors
+app.use('/uploads', (req, res, next) => {
+  if (/\.(png|jpe?g|gif|webp|svg)$/i.test(req.path)) {
+    const transparentGif = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+    res.setHeader('Content-Type', 'image/gif');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return res.status(200).send(transparentGif);
+  }
+  next();
+});
 
 // 3. Public PDF Download Route (Unauthenticated for WhatsApp Link Customers & Rich Cards)
 app.get('/api/v1/public/pdf/:token/raw', servePublicPdf);

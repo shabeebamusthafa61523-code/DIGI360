@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Plus, Search, Edit3, Trash2, Eye, X, Mail, Phone,
+  Plus, Search, Edit3, Trash2, Eye, X, Mail, Phone, Clock,
   Briefcase, Folder, UserCheck, ShieldAlert, Image as ImageIcon,
   Loader2, User, ChevronRight, CheckCircle2, AlertTriangle, Shield, BarChart3,
   ShieldCheck, KeyRound, Lock, Calendar, DollarSign, MapPin
@@ -99,6 +99,17 @@ const PermissionModal = ({ isOpen, onClose, user, onSave, showToast, getAuthHead
         'capital': '/accounts/capital',
         'purchase': '/accounts/purchase',
         'create invoice': '/accounts/create-invoice',
+        'daily operations os': '/daily-operations',
+        'daily operations': '/daily-operations',
+        'tl daily operations': '/tl-daily-operations',
+        'staff attendance': '/staff-attendance',
+        'attendance logs': '/staff-attendance',
+        'attendance': '/attendance',
+        'task assign': '/todo',
+        'todo': '/todo',
+        'task payments': '/employee-task-payments',
+        'employee task payments': '/employee-task-payments',
+        'employee-task-payments': '/employee-task-payments',
       };
 
       const extraAllowedPaths = new Set();
@@ -130,12 +141,31 @@ const PermissionModal = ({ isOpen, onClose, user, onSave, showToast, getAuthHead
     }
   }, [user]);
 
-  if (!isOpen || !user) return null;
+  const isItemChecked = useCallback((item) => {
+    if (isSuperAdmin) return true;
+    if (selectedPermissions.includes(item.label)) return true;
+    if (item.path === '/employee-task-payments') {
+      return (
+        selectedPermissions.includes('Employee Task Payments') ||
+        selectedPermissions.includes('Task Payments') ||
+        selectedPermissions.includes('employee-task-payments')
+      );
+    }
+    return false;
+  }, [isSuperAdmin, selectedPermissions]);
 
   const togglePermission = (label) => {
-    setSelectedPermissions(prev =>
-      prev.includes(label) ? prev.filter(p => p !== label) : [...prev, label]
-    );
+    setSelectedPermissions(prev => {
+      if (label === 'Employee Task Payments' || label === 'Task Payments') {
+        const hasIt = prev.includes('Employee Task Payments') || prev.includes('Task Payments') || prev.includes('employee-task-payments');
+        if (hasIt) {
+          return prev.filter(p => p !== 'Employee Task Payments' && p !== 'Task Payments' && p !== 'employee-task-payments');
+        } else {
+          return [...prev, 'Employee Task Payments'];
+        }
+      }
+      return prev.includes(label) ? prev.filter(p => p !== label) : [...prev, label];
+    });
   };
 
   const handleSelectAll = () => {
@@ -199,6 +229,8 @@ const PermissionModal = ({ isOpen, onClose, user, onSave, showToast, getAuthHead
   // Group items by category
   const categories = [...new Set(availableSidebarItems.map(i => i.category))];
 
+  if (!isOpen || !user) return null;
+
   return createPortal(
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -215,7 +247,7 @@ const PermissionModal = ({ isOpen, onClose, user, onSave, showToast, getAuthHead
               <ShieldCheck size={24} className="text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-black tracking-tight">{user.name}</h2>
+              <h2 className="text-lg font-black tracking-tight">{user?.name || 'User'}</h2>
               <p className="text-xs text-indigo-100 font-bold uppercase tracking-wider">Configure Sidebar Access & Permissions</p>
             </div>
           </div>
@@ -293,7 +325,7 @@ const PermissionModal = ({ isOpen, onClose, user, onSave, showToast, getAuthHead
                 <h4 className="text-[11px] font-black uppercase tracking-wider text-indigo-500 dark:text-indigo-400">{cat}</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {catItems.map(item => {
-                    const isChecked = isSuperAdmin || selectedPermissions.includes(item.label);
+                    const isChecked = isItemChecked(item);
                     return (
                       <label
                         key={item.label}
@@ -796,6 +828,10 @@ const Users = () => {
                               {ROLES.find(r => String(r.id) === String(user.roleId || user.role) || r.name.toLowerCase() === String(user.role).toLowerCase())?.name || user.role || 'employee'}
                             </span>
                           )}
+                          <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
+                            <Clock size={10} className="text-indigo-500" />
+                            <span>{user.shift_start_time || user.shiftStartTime || '09:00'} - {user.shift_end_time || user.shiftEndTime || '18:00'}</span>
+                          </div>
                         </td>
 
                         {/* Department / Manager */}
@@ -1286,7 +1322,9 @@ const CreateModal = ({ onClose, refresh, getAuthHeaders, designations, onDesigna
     salary: '',
     address: '',
     identityType: 'aadhaar',
-    identityNumber: ''
+    identityNumber: '',
+    shift_start_time: '09:00',
+    shift_end_time: '18:00'
   });
   const [preview, setPreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1477,6 +1515,32 @@ const CreateModal = ({ onClose, refresh, getAuthHeaders, designations, onDesigna
               <input name="salary" type="number" className="w-full text-xs py-2" placeholder="SALARY" value={form.salary} onChange={handleInputChange} />
             </div>
             <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase text-indigo-500 dark:text-indigo-400 tracking-wider block ml-1 flex items-center gap-1">
+                <Clock size={11} /> Shift Check-In Time
+              </label>
+              <input
+                type="time"
+                name="shift_start_time"
+                className="w-full text-xs py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500"
+                value={form.shift_start_time || '09:00'}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase text-indigo-500 dark:text-indigo-400 tracking-wider block ml-1 flex items-center gap-1">
+                <Clock size={11} /> Shift Check-Out Time
+              </label>
+              <input
+                type="time"
+                name="shift_end_time"
+                className="w-full text-xs py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500"
+                value={form.shift_end_time || '18:00'}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            <div className="space-y-1">
               <label className="text-[10px] font-black uppercase text-indigo-500 dark:text-indigo-400 tracking-wider block ml-1">Joining Date</label>
               <input required name="joining_date" type="date" className="w-full text-xs py-2" value={form.joining_date} onChange={handleInputChange} />
             </div>
@@ -1576,7 +1640,9 @@ const EditModal = ({ user, onClose, refresh, getAuthHeaders, designations, onDes
     salary: user.salary || '',
     address: user.address || '',
     identityType: user.identityType || 'aadhaar',
-    identityNumber: user.identityNumber || ''
+    identityNumber: user.identityNumber || '',
+    shift_start_time: user.shift_start_time || user.shiftStartTime || '09:00',
+    shift_end_time: user.shift_end_time || user.shiftEndTime || '18:00'
   });
   const [preview, setPreview] = useState(user.avatar || user.profile_image || null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1766,6 +1832,32 @@ const EditModal = ({ user, onClose, refresh, getAuthHeaders, designations, onDes
             <div className="space-y-1.5">
               <label className="text-[10px] font-black uppercase text-indigo-500 dark:text-indigo-400 tracking-wider block ml-1">Monthly Salary</label>
               <input name="salary" type="number" className="w-full" placeholder="SALARY" value={form.salary} onChange={handleInputChange} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase text-indigo-500 dark:text-indigo-400 tracking-wider block ml-1 flex items-center gap-1">
+                <Clock size={11} /> Shift Check-In Time
+              </label>
+              <input
+                type="time"
+                name="shift_start_time"
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500"
+                value={form.shift_start_time || '09:00'}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase text-indigo-500 dark:text-indigo-400 tracking-wider block ml-1 flex items-center gap-1">
+                <Clock size={11} /> Shift Check-Out Time
+              </label>
+              <input
+                type="time"
+                name="shift_end_time"
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500"
+                value={form.shift_end_time || '18:00'}
+                onChange={handleInputChange}
+                required
+              />
             </div>
             <div className="space-y-1.5">
               <label className="text-[10px] font-black uppercase text-indigo-500 dark:text-indigo-400 tracking-wider block ml-1">Joining Date</label>
@@ -2038,6 +2130,17 @@ const ViewModal = ({ user, onClose, getDesignationName, getDepartmentName }) => 
                   <div>
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">System Role</span>
                     <span className="font-bold text-indigo-600 dark:text-indigo-400 uppercase">{user.role || 'employee'}</span>
+                  </div>
+                  <div className="col-span-2 pt-2 border-t border-slate-200/40 dark:border-slate-800/40">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">
+                      Custom Shift Timing
+                    </span>
+                    <div className="flex items-center gap-2 p-2.5 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-200/60 dark:border-indigo-800/60">
+                      <Clock size={15} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+                      <span className="font-mono font-bold text-indigo-700 dark:text-indigo-300 text-xs">
+                        {user.shift_start_time || user.shiftStartTime || '09:00'} — {user.shift_end_time || user.shiftEndTime || '18:00'}
+                      </span>
+                    </div>
                   </div>
                   <div className="col-span-2">
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">System Status</span>
