@@ -7,7 +7,7 @@ import {
   Zap, Loader2, Eye, Activity, Megaphone, FolderKanban,
   CheckSquare, Plus, FileText, Globe, ExternalLink, Sparkles,
   Building2, Layers, Search, Filter, AlertCircle, Share2,
-  CheckCircle, MessageSquare
+  CheckCircle, MessageSquare, ShieldAlert
 } from 'lucide-react';
 import { useToast } from '../components/ToastProvider';
 
@@ -37,7 +37,14 @@ const PLATFORM_COLORS = {
 };
 
 const MarketingDashboard = () => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('user');
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch (e) {
+      return null;
+    }
+  });
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'leads' | 'calendar' | 'projects'
   
   // Data states
@@ -63,6 +70,27 @@ const MarketingDashboard = () => {
       if (savedUser) setUser(JSON.parse(savedUser));
     } catch (e) { console.error(e); }
   }, []);
+
+  const hasAccess = useMemo(() => {
+    if (!user) return false;
+    const role = String(user.role_id || user.roleId || user.role || '').toLowerCase().trim();
+    const isSuperAdmin = Boolean(
+      user.isSuperAdmin === true ||
+      user.is_super_admin === true ||
+      role === 'superadmin' ||
+      role === 'super_admin' ||
+      role === 'super admin' ||
+      role === '0'
+    );
+    if (isSuperAdmin) return true;
+
+    if (Array.isArray(user.permissions) && user.permissions.length > 0) {
+      const allowedSet = user.permissions.map(p => String(p).toLowerCase().trim());
+      return allowedSet.includes('marketing dashboard') || allowedSet.includes('/marketing-dashboard');
+    }
+
+    return false;
+  }, [user]);
 
   const getAuthHeaders = useCallback(() => {
     const rawToken = localStorage.getItem('token');
@@ -141,8 +169,12 @@ const MarketingDashboard = () => {
   }, [getAuthHeaders, showToast]);
 
   useEffect(() => {
-    fetchAllData();
-  }, [fetchAllData]);
+    if (hasAccess) {
+      fetchAllData();
+    } else {
+      setLoading(false);
+    }
+  }, [hasAccess, fetchAllData]);
 
   /* ─── Computed Analytics from real permissions ─── */
   const analytics = useMemo(() => {
@@ -237,6 +269,30 @@ const MarketingDashboard = () => {
       return (c.contentType || '').toLowerCase().includes(calendarFilter.toLowerCase());
     });
   }, [calendarWorks, calendarFilter]);
+
+  /* ─── Access Restricted ─── */
+  if (!hasAccess) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-6">
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+          className="max-w-md w-full bg-white dark:bg-slate-900 border border-rose-500/30 rounded-3xl p-8 shadow-2xl text-center">
+          <div className="mx-auto w-16 h-16 bg-rose-500/10 text-rose-500 rounded-2xl flex items-center justify-center mb-6">
+            <ShieldAlert size={36} />
+          </div>
+          <h1 className="text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-white mb-2">
+            Access <span className="text-rose-500">Restricted</span>
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-6">
+            Marketing Dashboard is only accessible to users with explicit permission. Please contact your Super Administrator to request access.
+          </p>
+          <button onClick={() => window.location.href = '/dashboard'}
+            className="w-full py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs uppercase rounded-xl transition-all cursor-pointer">
+            Return to Dashboard
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

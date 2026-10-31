@@ -25,7 +25,7 @@ const dailyShiftReportSchema = new mongoose.Schema({
       taskActivity: { type: String, default: '' },
       targetToday: { type: String, default: '' },
       actualOutput: { type: String, default: '' },
-      status: { type: String, enum: ['Not Started', 'In Progress', 'Completed', 'Delayed'], default: 'Completed' },
+      status: { type: String, enum: ['Not Started', 'Pending', 'In Progress', 'Current', 'Edit', 'Preview', 'Completed', 'Delayed'], default: 'Completed' },
       businessResultRemarks: { type: String, default: '' }
     }
   ],

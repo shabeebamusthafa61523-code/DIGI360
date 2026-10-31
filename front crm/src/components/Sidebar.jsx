@@ -99,7 +99,7 @@ const menuItems = [
   // --- DASHBOARDS ---
   { icon: TrendingUp, label: 'Dashboard', path: '/dashboard', category: 'Dashboards', allowedRoles: ['0', '1', '2', '10', 'admin', 'superadmin', 'MD', 'COO', 'EXECUTIVE_DIRECTOR'], allowedDepartmentNames: ['hr', 'admin', 'management'] },
   { icon: UserCog, label: 'HR Dashboard', path: '/hr-dashboard', category: 'Dashboards', allowedDesignationNames: ['hr', 'recruiter'] },
-  { icon: Megaphone, label: 'Marketing Dashboard', path: '/marketing-dashboard', category: 'Dashboards' },
+  { icon: Megaphone, label: 'Marketing Dashboard', path: '/marketing-dashboard', category: 'Dashboards', requiresPermission: true },
 
   // --- PEOPLE & HR ---
   { 
@@ -387,6 +387,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen })
           'admin dashboard': '/dashboard',
           'md dashboard': '/md-dashboard',
           'accountant dashboard': '/accountant-dashboard',
+          'marketing dashboard': '/marketing-dashboard',
           'income': '/accounts/income',
           'sales': '/accounts/sales',
           'capital': '/accounts/capital',
@@ -420,8 +421,6 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen })
               item.path === '/leaves' ||
               item.path === '/todo' ||
               item.label === 'Task Assign' ||
-              item.path === '/marketing-dashboard' ||
-              item.label === 'Marketing Dashboard' ||
               allowedSet.includes(itemLabelLower) || 
               allowedSet.includes(itemPathLower) ||
               extraAllowedPaths.includes(itemPathLower);
@@ -499,7 +498,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen })
       }
       
       const isPrivilegedUser = ['0', '1', '2', '10', 'admin', 'hr', 'superadmin', 'manager', 'team_lead', 'teamlead', 'tl', 'md'].includes(currentUserRole) || !!userObj.isTeamLead;
-      const DEFAULT_EMPLOYEE_LABELS = ['Dashboard', 'Marketing Dashboard', 'Task Assign', 'Notifications', 'Attendance', 'Leave Requests', 'My LMS Learning', 'Employee Training'];
+      const DEFAULT_EMPLOYEE_LABELS = ['Dashboard', 'Task Assign', 'Notifications', 'Attendance', 'Leave Requests', 'My LMS Learning', 'Employee Training'];
 
       const visible = menuItems.filter(item => {
         if (item.excludeRoles && item.excludeRoles.includes(currentUserRole)) {
@@ -515,8 +514,8 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen })
         if (item.isCommonDashboardFallback || item.isBasicReportFallback) {
           return false;
         }
-        if (item.label === 'Marketing Dashboard') {
-          return true;
+        if (item.label === 'Marketing Dashboard' || item.path === '/marketing-dashboard' || item.requiresPermission) {
+          return false;
         }
         if (item.label === 'Clients' || item.label === 'Projects' || item.label === 'Client Leads' || item.label === 'KPI Analytics' || item.label === 'Lead Dashboard') {
           return isPrivilegedUser;

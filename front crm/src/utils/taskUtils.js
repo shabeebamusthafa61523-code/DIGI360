@@ -90,7 +90,7 @@ export const fetchCompletedTasks = async (userId, dateStr) => {
         return matchesDate(completionTime);
       }
       
-      const isPendingOrInProgress = ['pending', 'current'].includes(statusLower);
+      const isPendingOrInProgress = ['pending', 'current', 'edit'].includes(statusLower);
       const dateMatches = matchesDate(t.date) || matchesDate(t.createdAt) || matchesDate(t.dueDate);
       
       return dateMatches || isPendingOrInProgress;
@@ -102,6 +102,7 @@ export const fetchCompletedTasks = async (userId, dateStr) => {
       const statusMap = {
         pending: 'Pending',
         current: 'In Progress',
+        edit: 'Edit',
         preview: 'Preview',
         done: 'Done'
       };
@@ -285,7 +286,7 @@ export const fetchDelegatedTasks = async (userId, dateStr, usersList = []) => {
       }
 
       const dateMatches = matchesDate(t.date) || matchesDate(t.createdAt) || matchesDate(t.updatedAt) || matchesDate(t.dueDate);
-      const isPendingOrInProgress = ['pending', 'current'].includes(statusLower);
+      const isPendingOrInProgress = ['pending', 'current', 'edit'].includes(statusLower);
 
       return dateMatches || isPendingOrInProgress;
     });
@@ -294,6 +295,7 @@ export const fetchDelegatedTasks = async (userId, dateStr, usersList = []) => {
       const statusMap = {
         pending: 'Pending',
         current: 'In Progress',
+        edit: 'Edit',
         preview: 'Preview',
         done: 'Done'
       };
