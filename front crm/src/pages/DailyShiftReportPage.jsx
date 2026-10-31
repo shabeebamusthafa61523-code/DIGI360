@@ -531,7 +531,8 @@ const DailyShiftReportPage = () => {
                 }
 
                 let statusVal = 'Pending';
-                if (raw.includes('current') || raw.includes('progress')) statusVal = 'Current';
+                if (raw.includes('edit')) statusVal = 'Edit';
+                else if (raw.includes('current') || raw.includes('progress')) statusVal = 'Current';
                 else if (raw.includes('preview')) statusVal = 'Preview';
                 else if (raw.includes('done') || raw.includes('completed') || raw.includes('finished')) statusVal = 'Completed';
 
@@ -1495,6 +1496,7 @@ const DailyShiftReportPage = () => {
                             >
                               <option value="Pending">Pending</option>
                               <option value="Current">Current</option>
+                              <option value="Edit">Edit</option>
                               <option value="Preview">Preview</option>
                               <option value="Completed">Completed</option>
                             </select>

@@ -28,6 +28,7 @@ const objectIdSchema = (fieldName) =>
 const TASK_STATUSES = [
   'pending',
   'current',
+  'edit',
   'preview',
   'in-progress',
   'in_progress',

@@ -59,6 +59,8 @@ export const resolveUserDashboardPath = (userObj) => {
 
   for (const item of ALL_DASHBOARD_ITEMS) {
     if (item.path === '/common-dashboard') continue; // reserve common dashboard as fallback
+    // Marketing Dashboard is restricted to users with explicit permission
+    if (item.path === '/marketing-dashboard') continue;
 
     const itemLabelLower = item.label.toLowerCase();
     const itemAliases = item.aliases;

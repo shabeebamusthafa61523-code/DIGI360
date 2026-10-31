@@ -133,9 +133,6 @@ const CalendarWorkForm = ({
       errors.title = "Title must not exceed 500 characters";
     }
 
-    if (!formData.contentType) {
-      errors.contentType = "Content type is required";
-    }
 
     if (!formData.assignedTo) {
       errors.assignedTo = "Assigned to is required";
@@ -188,6 +185,17 @@ const CalendarWorkForm = ({
     }
 
     const cleanedFormData = { ...formData };
+
+    // Ensure work item always has dates so it displays on calendar
+    const todayStr = new Intl.DateTimeFormat('en-CA').format(new Date());
+    if (!cleanedFormData.postingDate && !cleanedFormData.workDate) {
+      cleanedFormData.postingDate = todayStr;
+      cleanedFormData.workDate = todayStr;
+    } else if (!cleanedFormData.postingDate) {
+      cleanedFormData.postingDate = cleanedFormData.workDate;
+    } else if (!cleanedFormData.workDate) {
+      cleanedFormData.workDate = cleanedFormData.postingDate;
+    }
 
     [
       "project",
@@ -307,7 +315,7 @@ const CalendarWorkForm = ({
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-              Content Type <span className="text-rose-500">*</span>
+              Content Type <span className="text-slate-400 font-normal text-[11px]">(Optional)</span>
             </label>
             <button
               type="button"
@@ -325,7 +333,7 @@ const CalendarWorkForm = ({
             onChange={handleChange}
             className={fieldClass(validationErrors.contentType)}
           >
-            <option value="">Select type...</option>
+            <option value="">Select type (optional)...</option>
             {contentTypes.map((ct) => {
               const val = ct.value || ct._id || ct.name;
               const lbl = ct.name || ct.label || ct.value;

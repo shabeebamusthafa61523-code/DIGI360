@@ -19,6 +19,7 @@ import {
 const VALID_STATUSES = [
   "pending",
   "current",
+  "edit",
   "preview",
   "in-progress",
   "in_progress",

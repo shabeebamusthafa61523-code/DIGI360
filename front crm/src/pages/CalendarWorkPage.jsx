@@ -94,22 +94,19 @@ const CalendarWorkPage = () => {
     setError(null);
 
     try {
-      // Get first and last day of month
-      const startDate = new Date(
-        currentDate.getFullYear(),
-        currentDate.getMonth(),
-        1,
-      );
-      const endDate = new Date(
-        currentDate.getFullYear(),
-        currentDate.getMonth() + 1,
-        0,
-      );
+      // Format YYYY-MM-01 to YYYY-MM-(lastDay) cleanly in local time without UTC toISOString timezone shifts
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      const pad = (n) => String(n).padStart(2, "0");
+
+      const startDate = `${year}-${pad(month + 1)}-01`;
+      const endDate = `${year}-${pad(month + 1)}-${pad(lastDay)}`;
 
       const filters = {
-        startDate: startDate.toISOString().split("T")[0],
-        endDate: endDate.toISOString().split("T")[0],
-        limit: 100,
+        startDate,
+        endDate,
+        limit: 200,
         skip: 0,
       };
 
@@ -390,8 +387,15 @@ const CalendarWorkPage = () => {
           </button>
           <button
             onClick={() => {
+              const year = currentDate.getFullYear();
+              const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+              const todayDate = new Date();
+              const day = (todayDate.getFullYear() === year && todayDate.getMonth() === currentDate.getMonth())
+                ? String(todayDate.getDate()).padStart(2, "0")
+                : "01";
+              const defaultDate = `${year}-${month}-${day}`;
               setEditingWork(null);
-              setCreatePrefill(null);
+              setCreatePrefill({ workDate: defaultDate, postingDate: defaultDate });
               setCreateModalOpen(true);
             }}
             className="px-4 py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold text-sm transition shadow-lg shadow-indigo-500/20"

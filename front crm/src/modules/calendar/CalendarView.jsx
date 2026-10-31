@@ -136,12 +136,22 @@ const CalendarView = ({
       const displayDate = getItemDateValue(item);
 
       if (displayDate) {
-        const date = new Date(displayDate);
-        if (Number.isNaN(date.getTime())) return;
+        const dateStr = String(displayDate);
+        let day, month, year;
 
-        const day = date.getDate();
-        const month = date.getMonth();
-        const year = date.getFullYear();
+        // Extract YYYY-MM-DD directly to prevent UTC timezone date-shifting
+        const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (match) {
+          year = parseInt(match[1], 10);
+          month = parseInt(match[2], 10) - 1;
+          day = parseInt(match[3], 10);
+        } else {
+          const date = new Date(displayDate);
+          if (Number.isNaN(date.getTime())) return;
+          day = date.getDate();
+          month = date.getMonth();
+          year = date.getFullYear();
+        }
 
         if (
           month === currentDate.getMonth() &&
