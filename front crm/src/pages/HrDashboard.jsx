@@ -297,6 +297,7 @@ export default function HrDashboard() {
           total: 0,
           pending: 0,
           current: 0,
+          edit: 0,
           preview: 0,
           done: 0
         };
@@ -305,6 +306,7 @@ export default function HrDashboard() {
       userTaskMap[uId].total += 1;
       if (t.status === 'pending') userTaskMap[uId].pending += 1;
       else if (t.status === 'current') userTaskMap[uId].current += 1;
+      else if (t.status === 'edit') userTaskMap[uId].edit += 1;
       else if (t.status === 'preview') userTaskMap[uId].preview += 1;
       else if (t.status === 'done') userTaskMap[uId].done += 1;
       else userTaskMap[uId].pending += 1;
@@ -315,7 +317,7 @@ export default function HrDashboard() {
 
   // Company Workload Doughnut Data
   const companyWorkloadData = useMemo(() => {
-    let counts = { pending: 0, current: 0, preview: 0, done: 0 };
+    let counts = { pending: 0, current: 0, edit: 0, preview: 0, done: 0 };
     tasks.forEach(t => {
       if (counts[t.status] !== undefined) {
         counts[t.status] += 1;
@@ -327,6 +329,7 @@ export default function HrDashboard() {
     return [
       { label: 'Pending', value: counts.pending, color: '#94a3b8', bgClass: 'bg-slate-400' },
       { label: 'Current', value: counts.current, color: '#3b82f6', bgClass: 'bg-blue-500' },
+      { label: 'Edit', value: counts.edit, color: '#a855f7', bgClass: 'bg-purple-500' },
       { label: 'Preview', value: counts.preview, color: '#f59e0b', bgClass: 'bg-amber-500' },
       { label: 'Done', value: counts.done, color: '#10b981', bgClass: 'bg-emerald-500' }
     ];
@@ -960,6 +963,7 @@ export default function HrDashboard() {
                                   </div>
                                   <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider whitespace-nowrap border
                                     ${task.status === 'done' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400' :
+                                      task.status === 'edit' ? 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-500/10 dark:border-purple-500/30 dark:text-purple-400' :
                                       task.status === 'current' ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400' :
                                       task.status === 'preview' ? 'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-400' :
                                       'bg-slate-100 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'}`}

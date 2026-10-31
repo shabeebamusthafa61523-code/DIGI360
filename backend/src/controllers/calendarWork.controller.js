@@ -159,11 +159,16 @@ export const createCalendarWork = async (req, res) => {
     const parsedPostingDate = parseValidDate(postingDate);
     const cleanPostingTime = formatHHMM(postingTime);
 
+    // Fallback: If one date is provided but not the other, or neither is provided, default to today
+    const fallbackToday = new Date();
+    const effectivePostingDate = parsedPostingDate || parsedWorkDate || fallbackToday;
+    const effectiveWorkDate = parsedWorkDate || parsedPostingDate || fallbackToday;
+
     let scheduledPostTime = null;
-    if (parsedPostingDate && cleanPostingTime) {
+    if (effectivePostingDate && cleanPostingTime) {
       try {
         const [hours, minutes] = cleanPostingTime.split(':').map(Number);
-        const date = new Date(parsedPostingDate);
+        const date = new Date(effectivePostingDate);
         date.setHours(hours, minutes, 0, 0);
         scheduledPostTime = date;
       } catch (err) {
@@ -177,9 +182,9 @@ export const createCalendarWork = async (req, res) => {
       contentType: contentType || 'other',
       assignedTo,
       createdBy: userId,
-      workDate: parsedWorkDate,
+      workDate: effectiveWorkDate,
       workDueDate: parsedWorkDueDate,
-      postingDate: parsedPostingDate,
+      postingDate: effectivePostingDate,
       postingTime: cleanPostingTime,
       scheduledPostTime,
       project: projectId,
@@ -264,9 +269,36 @@ export const getCalendarWorks = async (req, res) => {
     if (contentType) filter.contentType = contentType;
 
     if (startDate || endDate) {
-      filter.workDate = {};
-      if (startDate && parseValidDate(startDate)) filter.workDate.$gte = parseValidDate(startDate);
-      if (endDate && parseValidDate(endDate)) filter.workDate.$lte = parseValidDate(endDate);
+      let startObj = null;
+      let endObj = null;
+      if (startDate && parseValidDate(startDate)) {
+        startObj = new Date(startDate);
+        startObj.setUTCHours(0, 0, 0, 0);
+      }
+      if (endDate && parseValidDate(endDate)) {
+        endObj = new Date(endDate);
+        endObj.setUTCHours(23, 59, 59, 999);
+      }
+      const dateConditions = [];
+      if (startObj && endObj) {
+        dateConditions.push(
+          { postingDate: { $gte: startObj, $lte: endObj } },
+          { workDate: { $gte: startObj, $lte: endObj } }
+        );
+      } else if (startObj) {
+        dateConditions.push(
+          { postingDate: { $gte: startObj } },
+          { workDate: { $gte: startObj } }
+        );
+      } else if (endObj) {
+        dateConditions.push(
+          { postingDate: { $lte: endObj } },
+          { workDate: { $lte: endObj } }
+        );
+      }
+      if (dateConditions.length > 0) {
+        filter.$or = dateConditions;
+      }
     }
 
     const parsedLimit = Math.max(1, parseInt(limit) || 50);

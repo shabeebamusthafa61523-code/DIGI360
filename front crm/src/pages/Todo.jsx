@@ -106,8 +106,8 @@ const recordTaskStatusTime = (taskId, oldStatus, newStatus, createdAt) => {
 
   const nowIso = new Date().toISOString();
 
-  // Moving to 'current' from 'pending' or initial creation
-  if (newStatus === 'current' && !timeLog.startedAt) {
+  // Moving to 'current' or 'edit' from 'pending' or initial creation
+  if ((newStatus === 'current' || newStatus === 'edit') && !timeLog.startedAt) {
     timeLog.startedAt = nowIso;
   }
 
@@ -237,6 +237,7 @@ const getOwnerDisplayName = (taskObj, usersList = []) => {
 const COLUMN_META = {
   pending: { label: 'Pending', icon: Layout, color: 'bg-[#e26a6a]', glow: 'shadow-[#e26a6a]/20' },
   current: { label: 'Current', icon: Clock, color: 'bg-[#e5a23a]', glow: 'shadow-[#e5a23a]/20' },
+  edit: { label: 'Edit', icon: Edit3, color: 'bg-[#a855f7]', glow: 'shadow-[#a855f7]/20' },
   preview: { label: 'Preview', icon: Eye, color: 'bg-indigo-500', glow: 'shadow-indigo-500/20' },
   done: { label: 'Completed', icon: CheckCircle2, color: 'bg-[#b7d333]', glow: 'shadow-[#b7d333]/20' }
 };
@@ -480,7 +481,7 @@ const fetchData = useCallback(async () => {
         </header>
 
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
             {Object.keys(COLUMN_META).map(statusKey => (
               <Droppable droppableId={statusKey} key={statusKey}>
                 {(provided, snapshot) => (
@@ -1552,6 +1553,11 @@ const DetailModal = ({ task, currentUserId, onClose, onUpdate, getAuthHeaders, D
       activeClass: 'bg-amber-100 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/80 text-amber-800 dark:text-amber-300 font-bold', 
       dot: 'bg-amber-600' 
     },
+    edit: { 
+      label: 'Edit', 
+      activeClass: 'bg-purple-100 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800/80 text-purple-800 dark:text-purple-300 font-bold', 
+      dot: 'bg-purple-600' 
+    },
     preview: { 
       label: 'Preview', 
       activeClass: 'bg-indigo-100 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/80 text-indigo-800 dark:text-indigo-300 font-bold', 
@@ -1943,6 +1949,7 @@ const DetailModal = ({ task, currentUserId, onClose, onUpdate, getAuthHeaders, D
                     >
                       <option value="pending">PENDING</option>
                       <option value="current">CURRENT</option>
+                      <option value="edit">EDIT</option>
                       <option value="preview">PREVIEW</option>
                       <option value="done">COMPLETED</option>
                     </select>
@@ -2117,7 +2124,7 @@ const DetailModal = ({ task, currentUserId, onClose, onUpdate, getAuthHeaders, D
               if (timeLog.startedAt && timeLog.completedAt) {
                 const ms = new Date(timeLog.completedAt) - new Date(timeLog.startedAt);
                 durationText = `${formatFullDurationString(ms)} (Pending → Completed)`;
-              } else if (timeLog.startedAt && (task.status === 'current' || task.status === 'preview')) {
+              } else if (timeLog.startedAt && (task.status === 'current' || task.status === 'edit' || task.status === 'preview')) {
                 const ms = Date.now() - new Date(timeLog.startedAt).getTime();
                 durationText = `${formatFullDurationString(ms)} (Currently In Progress)`;
                 isLive = true;
@@ -2140,11 +2147,15 @@ const DetailModal = ({ task, currentUserId, onClose, onUpdate, getAuthHeaders, D
                     <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
                       task.status === 'done' 
                         ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' 
+                        : task.status === 'edit'
+                        ? 'bg-purple-500/20 text-purple-400 border-purple-500/30 animate-pulse'
+                        : task.status === 'preview'
+                        ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
                         : task.status === 'current' || isLive 
                         ? 'bg-amber-500/20 text-amber-400 border-amber-500/30 animate-pulse'
                         : 'bg-slate-700/50 text-slate-300 border-slate-600'
                     }`}>
-                      {task.status === 'done' ? 'Completed' : task.status === 'current' ? 'In Progress' : 'Pending Start'}
+                      {task.status === 'done' ? 'Completed' : task.status === 'edit' ? 'In Edit' : task.status === 'preview' ? 'In Preview' : task.status === 'current' ? 'In Progress' : 'Pending Start'}
                     </span>
                   </div>
 

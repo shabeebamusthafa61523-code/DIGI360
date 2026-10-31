@@ -55,6 +55,7 @@ const taskSchema = new mongoose.Schema(
       enum: [
         'pending',
         'current',
+        'edit',
         'preview',
         'done',
         'in-progress',

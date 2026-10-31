@@ -40,9 +40,8 @@ const Login = () => {
         }
         showToast('Google Sign-In successful!', 'success');
 
-        const targetDashboard = resolveUserDashboardPath(result.user);
         setTimeout(() => {
-          navigate(targetDashboard);
+          navigate('/attendance');
         }, 500);
       } else {
         showToast(result.detail || result.message || 'Google Sign-In failed.', 'error');
@@ -140,8 +139,7 @@ const Login = () => {
         }
         showToast('Login successful!', 'success');
 
-        const targetDashboard = resolveUserDashboardPath(userObj);
-        navigate(targetDashboard);
+        navigate('/attendance');
       } else {
         showToast(result.detail || "Authentication Failed", 'error');
       }

@@ -107,7 +107,8 @@ const ProjectDetailsPage = () => {
   const totalTasksCount = tasks.length;
   const completedTasksCount = tasks.filter(t => ['done', 'Completed', 'completed', 'Done', 'DONE'].includes(t.status)).length;
   const pendingTasksCount = tasks.filter(t => t.status === 'pending').length;
-  const inProgressTasksCount = tasks.filter(t => t.status === 'current').length;
+  const inProgressTasksCount = tasks.filter(t => t.status === 'current' || t.status === 'edit').length;
+  const editTasksCount = tasks.filter(t => t.status === 'edit').length;
   const previewTasksCount = tasks.filter(t => t.status === 'preview').length;
   const computedCompletionPct = STAGE_PROGRESS_MAP[project.status] !== undefined 
     ? STAGE_PROGRESS_MAP[project.status] 

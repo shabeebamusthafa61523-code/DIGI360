@@ -94,6 +94,7 @@ const PermissionModal = ({ isOpen, onClose, user, onSave, showToast, getAuthHead
         'admin dashboard': '/dashboard',
         'md dashboard': '/md-dashboard',
         'accountant dashboard': '/accountant-dashboard',
+        'marketing dashboard': '/marketing-dashboard',
         'income': '/accounts/income',
         'sales': '/accounts/sales',
         'capital': '/accounts/capital',
