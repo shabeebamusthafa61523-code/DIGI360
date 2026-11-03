@@ -122,6 +122,17 @@ export const createTaskSchema = z.object({
       )
   ),
 
+  hasDueTime: preprocessSingleString(
+    z.preprocess(val => {
+      if (val === undefined || val === null || val === '') return undefined;
+      if (typeof val === 'string') {
+        const lower = val.toLowerCase().trim();
+        return lower === 'true' || lower === '1';
+      }
+      return Boolean(val);
+    }, z.boolean().optional())
+  ),
+
   priority: preprocessSingleString(
     z.enum(TASK_PRIORITIES)
       .optional()
@@ -229,6 +240,17 @@ export const updateTaskSchema = z.object({
           ? undefined
           : val
       )
+  ),
+
+  hasDueTime: preprocessSingleString(
+    z.preprocess(val => {
+      if (val === undefined || val === null || val === '') return undefined;
+      if (typeof val === 'string') {
+        const lower = val.toLowerCase().trim();
+        return lower === 'true' || lower === '1';
+      }
+      return Boolean(val);
+    }, z.boolean().optional())
   ),
 
   links: z

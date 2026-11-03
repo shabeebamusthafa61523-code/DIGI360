@@ -42,34 +42,83 @@ const getTaskImageUrl = (path) => {
   return `${backendHost}/${cleanPath}`;
 };
 
-const toIsoDueDate = (val) => {
-  if (!val) return '';
-  if (typeof val !== 'string') {
+const toIsoDueDate = (dateVal, timeVal = '') => {
+  if (!dateVal) return '';
+  const cleanDate = typeof dateVal === 'string' ? dateVal.trim() : '';
+  const cleanTime = typeof timeVal === 'string' ? timeVal.trim() : '';
+
+  if (cleanDate && /^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) {
+    if (cleanTime && /^\d{1,2}:\d{2}/.test(cleanTime)) {
+      try {
+        const [year, month, day] = cleanDate.split('-').map(Number);
+        const [hour, min] = cleanTime.split(':').map(Number);
+        const d = new Date(year, month - 1, day, hour, min, 0);
+        if (!isNaN(d.getTime())) return d.toISOString();
+      } catch (e) {}
+      return `${cleanDate}T${cleanTime}:00`;
+    }
+    // Pure date without time
     try {
-      const d = new Date(val);
+      const [year, month, day] = cleanDate.split('-').map(Number);
+      const d = new Date(year, month - 1, day, 0, 0, 0);
       if (!isNaN(d.getTime())) return d.toISOString();
     } catch (e) {}
-    return '';
+    return cleanDate;
   }
-  const clean = val.trim();
-  if (!clean) return '';
+
   try {
-    const d = new Date(clean);
+    const d = new Date(dateVal);
     if (!isNaN(d.getTime())) return d.toISOString();
   } catch (e) {}
-  return clean;
+  return cleanDate || dateVal;
 };
 
-const formatDateTimeDisplay = (dVal) => {
+const formatDateTimeDisplay = (dVal, hasTime = undefined) => {
   if (!dVal) return '';
   try {
     const d = new Date(dVal);
     if (isNaN(d.getTime())) return dVal;
     const dateStr = d.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    let showTime = hasTime;
+    if (showTime === undefined || showTime === null) {
+      if (typeof dVal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dVal.trim())) {
+        showTime = false;
+      } else {
+        // If hours, minutes, seconds are all zero, assume date-only
+        showTime = d.getHours() !== 0 || d.getMinutes() !== 0;
+      }
+    }
+
+    if (!showTime) return dateStr;
     const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     return `${dateStr} ${timeStr}`;
   } catch (e) {
     return dVal;
+  }
+};
+
+const getDateInputValue = (dVal) => {
+  if (!dVal) return '';
+  try {
+    const d = new Date(dVal);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  } catch (e) {
+    return '';
+  }
+};
+
+const getTimeInputValue = (dVal, hasTime = true) => {
+  if (!dVal || hasTime === false) return '';
+  try {
+    const d = new Date(dVal);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch (e) {
+    return '';
   }
 };
 
@@ -551,7 +600,7 @@ const fetchData = useCallback(async () => {
                               {task.dueDate && (
                                 <div className={`text-[10px] font-bold mb-4 flex items-center gap-1.5 ${isUrgent ? 'text-rose-500' : 'text-slate-500'}`}>
                                   <Clock size={12} />
-                                  <span>Due: {formatDateTimeDisplay(task.dueDate)}</span>
+                                  <span>Due: {formatDateTimeDisplay(task.dueDate, task.hasDueTime)}</span>
                                 </div>
                               )}
 
@@ -645,7 +694,7 @@ const fetchData = useCallback(async () => {
 const CreateModal = ({ onClose, users, refresh, getAuthHeaders, designations, currentUserId, canSeePayments }) => {
   const { showToast } = useToast();
 
-  const [form, setForm] = useState({ title: '', description: '', assigned_to: '', designation_id: '', dueDate: '', client: '', project: '', priority: 'medium', payment: '', paymentStatus: 'unpaid' });
+  const [form, setForm] = useState({ title: '', description: '', assigned_to: '', designation_id: '', dueDate: '', dueTime: '', client: '', project: '', priority: 'medium', payment: '', paymentStatus: 'unpaid' });
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [attachedLinks, setAttachedLinks] = useState([]);
   const [linkTitle, setLinkTitle] = useState('');
@@ -748,7 +797,10 @@ const CreateModal = ({ onClose, users, refresh, getAuthHeaders, designations, cu
     if (canSeePayments && form.paymentStatus) {
       fd.append('paymentStatus', form.paymentStatus);
     }
-    if (form.dueDate) fd.append('dueDate', toIsoDueDate(form.dueDate));
+    if (form.dueDate) {
+      fd.append('dueDate', toIsoDueDate(form.dueDate, form.dueTime));
+      fd.append('hasDueTime', Boolean(form.dueTime && form.dueTime.trim()).toString());
+    }
     if (form.client) fd.append('client', form.client);
     if (form.project) fd.append('project', form.project);
 
@@ -815,7 +867,7 @@ const CreateModal = ({ onClose, users, refresh, getAuthHeaders, designations, cu
                     <span style="display: inline-block; background: #0f172a; color: #c4ec0d; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; margin-right: 6px;">
                       Priority: ${(form.priority || 'medium').toUpperCase()}
                     </span>
-                    ${form.dueDate ? `<span style="display: inline-block; background: #fee2e2; color: #991b1b; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">Due: ${formatDateTimeDisplay(form.dueDate)}</span>` : ''}
+                    ${form.dueDate ? `<span style="display: inline-block; background: #fee2e2; color: #991b1b; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">Due: ${formatDateTimeDisplay(toIsoDueDate(form.dueDate, form.dueTime), Boolean(form.dueTime && form.dueTime.trim()))}</span>` : ''}
                   </div>
                 </div>
 
@@ -975,8 +1027,36 @@ const CreateModal = ({ onClose, users, refresh, getAuthHeaders, designations, cu
             </div>
             {!canSeePayments && (
               <div className="space-y-1">
-                <label className="text-[9px] font-black uppercase text-indigo-500 tracking-[0.2em] ml-1">Due Date & Time</label>
-                <input type="datetime-local" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-slate-900 dark:text-slate-100 text-xs font-semibold outline-none focus:border-indigo-500/50" value={form.dueDate} onChange={e => setForm({...form, dueDate: e.target.value})} />
+                <label className="text-[9px] font-black uppercase text-indigo-500 tracking-[0.2em] ml-1 flex items-center justify-between">
+                  <span>Due Date</span>
+                  <span className="text-[8px] text-slate-400 lowercase font-normal">(time optional)</span>
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <input 
+                    type="date" 
+                    className="flex-1 min-w-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-2 rounded-xl text-slate-900 dark:text-slate-100 text-xs font-semibold outline-none focus:border-indigo-500/50" 
+                    value={form.dueDate} 
+                    onChange={e => setForm({...form, dueDate: e.target.value})} 
+                  />
+                  <div className="relative flex-1 min-w-0">
+                    <input 
+                      type="time" 
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-2 rounded-xl text-slate-900 dark:text-slate-100 text-xs font-semibold outline-none focus:border-indigo-500/50 pr-6" 
+                      value={form.dueTime} 
+                      onChange={e => setForm({...form, dueTime: e.target.value})} 
+                    />
+                    {form.dueTime && (
+                      <button 
+                        type="button" 
+                        onClick={() => setForm({...form, dueTime: ''})} 
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 p-0.5 cursor-pointer text-xs font-bold"
+                        title="Clear Time"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
             {canSeePayments && (
@@ -1001,8 +1081,36 @@ const CreateModal = ({ onClose, users, refresh, getAuthHeaders, designations, cu
           {canSeePayments && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-[9px] font-black uppercase text-indigo-500 tracking-[0.2em] ml-1">Due Date & Time</label>
-                <input type="datetime-local" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-slate-900 dark:text-slate-100 text-xs font-semibold outline-none focus:border-indigo-500/50" value={form.dueDate} onChange={e => setForm({...form, dueDate: e.target.value})} />
+                <label className="text-[9px] font-black uppercase text-indigo-500 tracking-[0.2em] ml-1 flex items-center justify-between">
+                  <span>Due Date</span>
+                  <span className="text-[8px] text-slate-400 lowercase font-normal">(time optional)</span>
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <input 
+                    type="date" 
+                    className="flex-1 min-w-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-2 rounded-xl text-slate-900 dark:text-slate-100 text-xs font-semibold outline-none focus:border-indigo-500/50" 
+                    value={form.dueDate} 
+                    onChange={e => setForm({...form, dueDate: e.target.value})} 
+                  />
+                  <div className="relative flex-1 min-w-0">
+                    <input 
+                      type="time" 
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-2 rounded-xl text-slate-900 dark:text-slate-100 text-xs font-semibold outline-none focus:border-indigo-500/50 pr-6" 
+                      value={form.dueTime} 
+                      onChange={e => setForm({...form, dueTime: e.target.value})} 
+                    />
+                    {form.dueTime && (
+                      <button 
+                        type="button" 
+                        onClick={() => setForm({...form, dueTime: ''})} 
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 p-0.5 cursor-pointer text-xs font-bold"
+                        title="Clear Time"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
               <div className="space-y-1">
                 <label className="text-[9px] font-black uppercase text-indigo-500 tracking-[0.2em] ml-1">Payment Status</label>
@@ -1663,6 +1771,9 @@ const DetailModal = ({ task, currentUserId, onClose, onUpdate, getAuthHeaders, D
 
       setEditForm({
         ...task,
+        dueDate: getDateInputValue(task.dueDate),
+        dueTime: getTimeInputValue(task.dueDate, task.hasDueTime),
+        hasDueTime: Boolean(task.hasDueTime),
         assigned_to: rawAssignedTo,
         status: task.status || "pending",
         client: rawClient,
@@ -1706,7 +1817,13 @@ const DetailModal = ({ task, currentUserId, onClose, onUpdate, getAuthHeaders, D
     }
 
     if (newFile) fd.append('file', newFile);
-    if (editForm.dueDate) fd.append('dueDate', toIsoDueDate(editForm.dueDate));
+    if (editForm.dueDate) {
+      fd.append('dueDate', toIsoDueDate(editForm.dueDate, editForm.dueTime));
+      fd.append('hasDueTime', Boolean(editForm.dueTime && editForm.dueTime.trim()).toString());
+    } else {
+      fd.append('dueDate', '');
+      fd.append('hasDueTime', 'false');
+    }
 
     try {
       await fetch(`${API_BASE}/tasks/update/${task.id}`, {
@@ -1766,7 +1883,7 @@ const DetailModal = ({ task, currentUserId, onClose, onUpdate, getAuthHeaders, D
                       <span style="display: inline-block; background: #0f172a; color: #c4ec0d; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; margin-right: 6px;">
                         Priority: ${(editForm.priority || 'medium').toUpperCase()}
                       </span>
-                      ${editForm.dueDate ? `<span style="display: inline-block; background: #fee2e2; color: #991b1b; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">Due: ${formatDateTimeDisplay(editForm.dueDate)}</span>` : ''}
+                      ${editForm.dueDate ? `<span style="display: inline-block; background: #fee2e2; color: #991b1b; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">Due: ${formatDateTimeDisplay(toIsoDueDate(editForm.dueDate, editForm.dueTime), Boolean(editForm.dueTime && editForm.dueTime.trim()))}</span>` : ''}
                     </div>
                   </div>
 
@@ -2337,21 +2454,43 @@ const DetailModal = ({ task, currentUserId, onClose, onUpdate, getAuthHeaders, D
               )}
             </div>
             <div>
-              <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.3em] block mb-2">Due Date & Time</span>
+              <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.3em] block mb-2">
+                Due Date & Time <span className="text-slate-400 font-normal lowercase">(time optional)</span>
+              </span>
               {isEditing ? (
-                <input 
-                  type="datetime-local"
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl text-slate-900 dark:text-slate-100 text-[11px] font-bold outline-none"
-                  value={getDatetimeLocalValue(editForm.dueDate)}
-                  onChange={e => setEditForm({...editForm, dueDate: e.target.value})} 
-                />
+                <div className="flex items-center gap-1.5">
+                  <input 
+                    type="date"
+                    className="flex-1 min-w-0 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-slate-900 dark:text-slate-100 text-xs font-bold outline-none"
+                    value={editForm.dueDate || ''}
+                    onChange={e => setEditForm({...editForm, dueDate: e.target.value})} 
+                  />
+                  <div className="relative flex-1 min-w-0">
+                    <input 
+                      type="time"
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-slate-900 dark:text-slate-100 text-xs font-bold outline-none pr-6"
+                      value={editForm.dueTime || ''}
+                      onChange={e => setEditForm({...editForm, dueTime: e.target.value})} 
+                    />
+                    {editForm.dueTime && (
+                      <button 
+                        type="button" 
+                        onClick={() => setEditForm({...editForm, dueTime: ''})} 
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 p-0.5 cursor-pointer text-xs font-bold"
+                        title="Clear Time"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
               ) : (
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 bg-rose-500/10 rounded-full flex items-center justify-center border border-rose-500/20 text-rose-400">
                     <Clock size={18} />
                   </div>
                   <span className="text-slate-900 dark:text-slate-100 font-bold tracking-tight uppercase text-sm">
-                    {task.dueDate ? formatDateTimeDisplay(task.dueDate) : 'No Due Date & Time'}
+                    {task.dueDate ? formatDateTimeDisplay(task.dueDate, task.hasDueTime) : 'No Due Date & Time'}
                   </span>
                 </div>
               )}
