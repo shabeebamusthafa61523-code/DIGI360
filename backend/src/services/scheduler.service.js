@@ -162,6 +162,7 @@ export const schedulerService = {
 
         const upcomingTasks = await Task.find({
           status: { $ne: 'done' },
+          hasDueTime: true,
           dueDate: { $gte: now, $lte: fifteenMinsLater }
         }).populate('assigned_to', 'name email phone');
 

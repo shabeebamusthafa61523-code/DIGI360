@@ -139,6 +139,11 @@ const taskSchema = new mongoose.Schema(
       type: Date
     },
 
+    hasDueTime: {
+      type: Boolean,
+      default: false
+    },
+
     // ============================================================
     // TASK ATTACHMENTS
     // ============================================================
