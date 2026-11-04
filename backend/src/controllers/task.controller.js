@@ -52,6 +52,11 @@ const parseDueDate = (dateVal) => {
       const [hour, minute, second] = timePart.split(':').map(Number);
       return new Date(year, month - 1, day, hour, minute, second || 0);
     }
+    // If sent as pure date string e.g. "2026-11-15"
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      const [year, month, day] = trimmed.split('-').map(Number);
+      return new Date(year, month - 1, day, 0, 0, 0);
+    }
     const d = new Date(trimmed);
     return isNaN(d.getTime()) ? undefined : d;
   }
@@ -472,6 +477,7 @@ const formatLeanTask = (task, isPrivileged = true) => {
     paymentCurrency: task.paymentCurrency || 'INR',
     designation_id: task.designation_id,
     dueDate: task.dueDate || null,
+    hasDueTime: Boolean(task.hasDueTime),
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
     user_id: normalizeId(task.created_by || task.user_id),
@@ -695,6 +701,7 @@ export const createTask = async (req, res, next) => {
       assigned_to,
       designation_id,
       dueDate,
+      hasDueTime,
       client,
       project,
       priority,
@@ -796,6 +803,8 @@ export const createTask = async (req, res, next) => {
       designation_id: designation_id || undefined,
 
       dueDate: parseDueDate(dueDate),
+
+      hasDueTime: dueDate ? (hasDueTime === true || hasDueTime === 'true' || hasDueTime === 1 || hasDueTime === '1') : false,
 
       client: clientId,
 
@@ -1465,6 +1474,17 @@ export const updateTask = async (req, res, next) => {
 
     if (dueDate !== undefined) {
       task.dueDate = parseDueDate(dueDate) || null;
+      if (!task.dueDate) {
+        task.hasDueTime = false;
+      }
+    }
+
+    if (req.body.hasDueTime !== undefined) {
+      task.hasDueTime =
+        req.body.hasDueTime === true ||
+        req.body.hasDueTime === 'true' ||
+        req.body.hasDueTime === 1 ||
+        req.body.hasDueTime === '1';
     }
 
     /* Client */
